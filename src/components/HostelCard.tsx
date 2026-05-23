@@ -8,6 +8,7 @@ interface HostelCardProps {
 export default function HostelCard({ hostel }: HostelCardProps) {
   const navigate = useNavigate();
   const hasPhoto = hostel.photos.length > 0;
+  const cheapestRent = hostel.rents.length > 0 ? Math.min(...hostel.rents.map((r) => r.rent)) : 0;
 
   return (
     <div
@@ -32,15 +33,15 @@ export default function HostelCard({ hostel }: HostelCardProps) {
         )}
         {/* Rent badge */}
         <div className="absolute top-2 right-2 bg-blue-500/90 backdrop-blur-sm text-white text-xs font-bold px-2.5 py-1 rounded-full">
-          ₹{hostel.rent.toLocaleString()}/mo
+          ₹{cheapestRent.toLocaleString()}/mo
         </div>
-        {/* AC badge */}
-        {hostel.hasAC && (
-          <div className="absolute top-2 left-2 bg-cyan-500/90 backdrop-blur-sm text-white text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        {/* Rating badge */}
+        {hostel.rating > 0 && (
+          <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-sm text-yellow-400 text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
             </svg>
-            AC
+            {hostel.rating}
           </div>
         )}
         {/* Photo count */}
@@ -61,6 +62,15 @@ export default function HostelCard({ hostel }: HostelCardProps) {
           </svg>
           <span className="truncate">{hostel.location.address || `${hostel.location.lat.toFixed(4)}, ${hostel.location.lng.toFixed(4)}`}</span>
         </div>
+        {/* Rent options summary */}
+        {hostel.rents.length > 0 && (
+          <div className="flex items-center gap-1 mt-1.5 text-xs text-slate-500">
+            <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span>{hostel.rents.map((r) => `${r.shares} sharing @ ₹${r.rent}`).join(', ')}</span>
+          </div>
+        )}
         <div className="flex items-center gap-2 mt-2 flex-wrap">
           {hostel.amenities.slice(0, 3).map((amenity) => (
             <span key={amenity} className="text-[10px] px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 border border-slate-600">

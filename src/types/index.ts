@@ -1,13 +1,20 @@
+export interface HostelRent {
+  shares: number;
+  rent: number;
+}
+
 export interface Hostel {
   id: string;
   name: string;
-  rent: number;
+  rents: HostelRent[];
+  securityFee: number;
+  otherFines: string;
+  rating: number;
   location: {
     lat: number;
     lng: number;
     address: string;
   };
-  hasAC: boolean;
   photos: string[]; // base64 encoded image strings
   contactNumber: string;
   description: string;
@@ -18,13 +25,15 @@ export interface Hostel {
 
 export interface HostelFormData {
   name: string;
-  rent: string;
+  rents: HostelRent[];
+  securityFee: string;
+  otherFines: string;
+  rating: number;
   location: {
     lat: number;
     lng: number;
     address: string;
   };
-  hasAC: boolean;
   photos: string[];
   contactNumber: string;
   description: string;
@@ -32,19 +41,15 @@ export interface HostelFormData {
 }
 
 export const AMENITIES_LIST = [
-  'WiFi',
-  'Parking',
-  'Meals',
-  'Laundry',
-  'Gym',
-  'Study Room',
-  'Common Room',
-  'Security',
-  'Power Backup',
-  'Water Supply',
-  'Kitchen Access',
+  'Electricity Included',
+  'Food',
+  'Wi-Fi',
   'AC',
-  'Heater',
+  'Laundry',
+  'Power Backup',
+  'Parking',
+  'Gym',
+  'Kitchen Access',
   'TV',
   'Fridge',
 ] as const;

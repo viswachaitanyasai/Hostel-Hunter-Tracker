@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import { icon } from 'leaflet';
 import { useGeolocation } from '../hooks/useGeolocation';
-import { createHostel, fileToBase64 } from '../storage';
+import { createHostel, updateHostel, getHostelById, fileToBase64 } from '../storage';
 import { AMENITIES_LIST } from '../types';
+import type { HostelRent } from '../types';
 
 const markerIcon = icon({
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -30,17 +31,50 @@ function LocationPicker({ onLocationChange }: { onLocationChange: (lat: number, 
   return null;
 }
 
+function StarRating({ value, onChange, readonly = false }: { value: number; onChange?: (v: number) => void; readonly?: boolean }) {
+  return (
+    <div className="flex items-center gap-1">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <button
+          key={star}
+          type="button"
+          disabled={readonly}
+          onClick={() => onChange?.(star)}
+          className={`transition-all duration-150 ${readonly ? 'cursor-default' : 'cursor-pointer hover:scale-110'}`}
+        >
+          <svg
+            className={`w-6 h-6 ${star <= value ? 'text-yellow-400' : 'text-slate-600'}`}
+            fill="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+          </svg>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+const DEFAULT_SHARES: HostelRent[] = [
+  { shares: 3, rent: 0 },
+];
+
 export default function AddHostelPage() {
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const { lat, lng, loading: gpsLoading, error: gpsError, getCurrentPosition } = useGeolocation();
 
+  const isEditing = !!id;
+
   const [name, setName] = useState('');
-  const [rent, setRent] = useState('');
+  const [rents, setRents] = useState<HostelRent[]>(DEFAULT_SHARES);
+  const [securityFee, setSecurityFee] = useState('');
+  const [otherFines, setOtherFines] = useState('');
+  const [rating, setRating] = useState(0);
   const [description, setDescription] = useState('');
   const [contactNumber, setContactNumber] = useState('');
-  const [hasAC, setHasAC] = useState(false);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
   const [photos, setPhotos] = useState<string[]>([]);
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
@@ -51,6 +85,38 @@ export default function AddHostelPage() {
   const [address, setAddress] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [loadingEdit, setLoadingEdit] = useState(false);
+
+  // Load existing hostel data for editing
+  useEffect(() => {
+    if (id) {
+      setLoadingEdit(true);
+      getHostelById(id)
+        .then((hostel) => {
+          if (!hostel) {
+            setError('Hostel not found');
+            return;
+          }
+          setName(hostel.name);
+          setRents(hostel.rents);
+          setSecurityFee(hostel.securityFee ? String(hostel.securityFee) : '');
+          setOtherFines(hostel.otherFines || '');
+          setRating(hostel.rating || 0);
+          setDescription(hostel.description);
+          setContactNumber(hostel.contactNumber);
+          setSelectedAmenities(hostel.amenities);
+          setPhotos(hostel.photos);
+          setHostelLat(hostel.location.lat);
+          setHostelLng(hostel.location.lng);
+          setAddress(hostel.location.address);
+        })
+        .catch((err) => {
+          console.error('Failed to load hostel:', err);
+          setError('Failed to load hostel data');
+        })
+        .finally(() => setLoadingEdit(false));
+    }
+  }, [id]);
 
   const handleLocationDetect = () => {
     getCurrentPosition();
@@ -58,12 +124,12 @@ export default function AddHostelPage() {
 
   // When GPS updates, set hostel location
   useEffect(() => {
-    if (lat && lng && hostelLat === null && hostelLng === null) {
+    if (lat && lng && hostelLat === null && hostelLng === null && !isEditing) {
       setHostelLat(lat);
       setHostelLng(lng);
       reverseGeocode(lat, lng).then(setAddress);
     }
-  }, [lat, lng, hostelLat, hostelLng]);
+  }, [lat, lng, hostelLat, hostelLng, isEditing]);
 
   const handleMapClick = (newLat: number, newLng: number) => {
     setHostelLat(newLat);
@@ -92,6 +158,20 @@ export default function AddHostelPage() {
     setPhotoFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const updateRent = (index: number, field: 'shares' | 'rent', value: number) => {
+    setRents((prev) => prev.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
+  };
+
+  const addRentRow = () => {
+    const maxShares = Math.max(...rents.map((r) => r.shares), 0);
+    setRents((prev) => [...prev, { shares: maxShares + 1, rent: 0 }]);
+  };
+
+  const removeRentRow = (index: number) => {
+    if (rents.length <= 1) return;
+    setRents((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -100,8 +180,9 @@ export default function AddHostelPage() {
       setError('Please enter a hostel name');
       return;
     }
-    if (!rent || isNaN(Number(rent)) || Number(rent) <= 0) {
-      setError('Please enter a valid rent amount');
+    const validRents = rents.filter((r) => r.rent > 0);
+    if (validRents.length === 0) {
+      setError('Please enter at least one valid rent amount');
       return;
     }
     if (!hostelLat || !hostelLng) {
@@ -111,12 +192,14 @@ export default function AddHostelPage() {
 
     setSubmitting(true);
     try {
-      await createHostel({
+      const baseData = {
         name: name.trim(),
-        rent: Number(rent),
+        rents: validRents,
+        securityFee: securityFee ? Number(securityFee) : 0,
+        otherFines: otherFines.trim(),
+        rating,
         description: description.trim(),
         contactNumber: contactNumber.trim(),
-        hasAC,
         amenities: selectedAmenities,
         photos,
         location: {
@@ -124,7 +207,13 @@ export default function AddHostelPage() {
           lng: hostelLng,
           address: address || `${hostelLat.toFixed(4)}, ${hostelLng.toFixed(4)}`,
         },
-      });
+      };
+
+      if (isEditing && id) {
+        await updateHostel(id, baseData);
+      } else {
+        await createHostel(baseData);
+      }
       navigate('/');
     } catch (err) {
       setError('Failed to save hostel. Please try again.');
@@ -133,6 +222,17 @@ export default function AddHostelPage() {
       setSubmitting(false);
     }
   };
+
+  if (loadingEdit) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-slate-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-900 pb-8">
@@ -148,7 +248,7 @@ export default function AddHostelPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <h1 className="text-lg font-bold">Add New Hostel</h1>
+          <h1 className="text-lg font-bold">{isEditing ? 'Edit Hostel' : 'Add New Hostel'}</h1>
         </div>
       </header>
 
@@ -245,39 +345,98 @@ export default function AddHostelPage() {
             />
           </div>
 
-          {/* Rent & AC row */}
+          {/* Rent per share */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="input-label mb-0">Rent per Sharing *</label>
+              <button
+                type="button"
+                onClick={addRentRow}
+                className="flex items-center gap-1 px-3 py-1 text-xs font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-xl hover:bg-blue-500/30 transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Add Share
+              </button>
+            </div>
+            <div className="space-y-2">
+              {rents.map((rentItem, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        value={rentItem.shares}
+                        onChange={(e) => updateRent(index, 'shares', Math.max(1, Number(e.target.value)))}
+                        min="1"
+                        className="w-16 bg-slate-700/50 border border-slate-600 rounded-xl px-3 py-2.5 text-white text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                      />
+                      <span className="text-slate-400 text-sm font-medium">
+                        {rentItem.shares === 1 ? 'Share' : 'Shares'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₹</span>
+                    <input
+                      type="number"
+                      value={rentItem.rent || ''}
+                      onChange={(e) => updateRent(index, 'rent', Number(e.target.value))}
+                      placeholder="Rent"
+                      min="0"
+                      className="w-full bg-slate-700/50 border border-slate-600 rounded-xl pl-8 pr-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                    />
+                  </div>
+                  {rents.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeRentRow(index)}
+                      className="p-2 text-slate-500 hover:text-red-400 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Security Fee & Rating row */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="input-label" htmlFor="rent">Monthly Rent (₹) *</label>
+              <label className="input-label" htmlFor="securityFee">Security Fee (₹)</label>
               <input
-                id="rent"
+                id="securityFee"
                 type="number"
-                value={rent}
-                onChange={(e) => setRent(e.target.value)}
+                value={securityFee}
+                onChange={(e) => setSecurityFee(e.target.value)}
                 placeholder="5000"
                 min="0"
                 className="input-field"
               />
             </div>
             <div>
-              <label className="input-label">AC Available</label>
-              <button
-                type="button"
-                onClick={() => setHasAC(!hasAC)}
-                className={`w-full py-3 rounded-xl border-2 font-medium text-sm transition-all duration-200 ${
-                  hasAC
-                    ? 'bg-cyan-500/20 border-cyan-500 text-cyan-400'
-                    : 'bg-slate-800 border-slate-600 text-slate-400 hover:border-slate-500'
-                }`}
-              >
-                <div className="flex items-center justify-center gap-2">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                  </svg>
-                  {hasAC ? 'AC Included' : 'No AC'}
-                </div>
-              </button>
+              <label className="input-label">Rating</label>
+              <div className="input-field flex items-center pt-2.5 pb-2">
+                <StarRating value={rating} onChange={setRating} />
+              </div>
             </div>
+          </div>
+
+          {/* Other Fines */}
+          <div>
+            <label className="input-label" htmlFor="otherFines">Other Fines & Rules</label>
+            <textarea
+              id="otherFines"
+              value={otherFines}
+              onChange={(e) => setOtherFines(e.target.value)}
+              placeholder="e.g. Late fee: ₹100/day, No visitors after 10pm..."
+              rows={2}
+              className="input-field resize-none"
+            />
           </div>
 
           {/* Contact & Description */}
@@ -368,8 +527,8 @@ export default function AddHostelPage() {
                 zoomControl={true}
               >
                 <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
+                  url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
                 />
                 {hostelLat && hostelLng && (
                   <>
@@ -410,7 +569,7 @@ export default function AddHostelPage() {
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                Save Hostel
+                {isEditing ? 'Update Hostel' : 'Save Hostel'}
               </>
             )}
           </button>
@@ -432,3 +591,5 @@ async function reverseGeocode(lat: number, lng: number): Promise<string> {
     return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
   }
 }
+
+

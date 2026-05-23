@@ -15,6 +15,14 @@ const markerIcon = icon({
 });
 
 function HostelPopupContent({ hostel, onViewDetails }: { hostel: Hostel; onViewDetails: (id: string) => void }) {
+  const openInGoogleMaps = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const url = `https://www.google.com/maps?q=${hostel.location.lat},${hostel.location.lng}`;
+    window.open(url, '_blank');
+  };
+
+  const cheapestRent = hostel.rents.length > 0 ? Math.min(...hostel.rents.map((r) => r.rent)) : 0;
+
   return (
     <div className="min-w-[200px]">
       {hostel.photos.length > 0 && (
@@ -25,11 +33,20 @@ function HostelPopupContent({ hostel, onViewDetails }: { hostel: Hostel; onViewD
         />
       )}
       <h3 className="font-semibold text-sm text-slate-800">{hostel.name}</h3>
-      <p className="text-blue-600 font-bold text-sm mt-1">₹{hostel.rent.toLocaleString()}/mo</p>
-      {hostel.hasAC && (
-        <span className="inline-block text-xs bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded-full mt-1">
-          AC
-        </span>
+      <p className="text-blue-600 font-bold text-sm mt-1">₹{cheapestRent.toLocaleString()}/mo</p>
+      {hostel.rating > 0 && (
+        <div className="flex items-center gap-0.5 mt-1">
+          {[1, 2, 3, 4, 5].map((star) => (
+            <svg
+              key={star}
+              className={`w-3 h-3 ${star <= hostel.rating ? 'text-yellow-400' : 'text-gray-300'}`}
+              fill="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+            </svg>
+          ))}
+        </div>
       )}
       <div className="flex flex-wrap gap-1 mt-2">
         {hostel.amenities.slice(0, 3).map((a) => (
@@ -38,12 +55,23 @@ function HostelPopupContent({ hostel, onViewDetails }: { hostel: Hostel; onViewD
           </span>
         ))}
       </div>
-      <button
-        onClick={() => onViewDetails(hostel.id)}
-        className="mt-2 w-full text-xs bg-blue-500 text-white py-1.5 rounded-lg hover:bg-blue-600 transition-colors"
-      >
-        View Details
-      </button>
+      <div className="flex gap-2 mt-2">
+        <button
+          onClick={() => onViewDetails(hostel.id)}
+          className="flex-1 text-xs bg-blue-500 text-white py-1.5 rounded-lg hover:bg-blue-600 transition-colors"
+        >
+          View Details
+        </button>
+        <button
+          onClick={openInGoogleMaps}
+          className="flex-shrink-0 text-xs bg-green-500 text-white py-1.5 px-2 rounded-lg hover:bg-green-600 transition-colors"
+          title="Open in Google Maps"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 }
@@ -146,8 +174,8 @@ export default function MapPage() {
             zoomControl={true}
           >
             <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
+              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
             />
             {hostels.map((hostel) => (
               <Marker
