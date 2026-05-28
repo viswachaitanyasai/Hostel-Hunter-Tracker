@@ -240,7 +240,16 @@ export default function HostelDetailPage() {
         <div className="card p-5">
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
-              <h1 className="text-xl font-bold text-white">{hostel.name}</h1>
+              <div className="flex items-center gap-2 mb-1">
+                <h1 className="text-xl font-bold text-white">{hostel.name}</h1>
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                  hostel.type === 'boys'
+                    ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                    : 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                }`}>
+                  {hostel.type === 'boys' ? 'Boys' : 'Co-living'}
+                </span>
+              </div>
               <div className="flex items-center gap-1.5 mt-1 text-sm text-slate-400">
                 <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -306,6 +315,45 @@ export default function HostelDetailPage() {
           </div>
         )}
 
+        {/* Food & Electricity Info */}
+        {(hostel.foodIncluded !== undefined || hostel.electricityType) && (
+          <div className="card p-5">
+            <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">Food & Electricity</h2>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="py-3 px-3 rounded-xl bg-slate-700/30 border border-slate-700/50">
+                <p className="text-xs text-slate-400 font-medium mb-1">Food</p>
+                {hostel.foodIncluded ? (
+                  <p className="text-sm font-semibold text-green-400 flex items-center gap-1">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Included
+                  </p>
+                ) : (
+                  <p className="text-sm font-semibold text-white">
+                    {hostel.foodCharges > 0 ? `₹${hostel.foodCharges}/mo` : 'Not Included'}
+                  </p>
+                )}
+              </div>
+              <div className="py-3 px-3 rounded-xl bg-slate-700/30 border border-slate-700/50">
+                <p className="text-xs text-slate-400 font-medium mb-1">Electricity</p>
+                {hostel.electricityType === 'included' ? (
+                  <p className="text-sm font-semibold text-green-400 flex items-center gap-1">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Included
+                  </p>
+                ) : hostel.electricityType === 'fixed' ? (
+                  <p className="text-sm font-semibold text-white">₹{hostel.electricityAmount}/mo <span className="text-xs text-amber-400">(Fixed)</span></p>
+                ) : (
+                  <p className="text-sm font-semibold text-white">₹{hostel.electricityAmount}/unit <span className="text-xs text-amber-400">(Per Unit)</span></p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Description */}
         {hostel.description && (
           <div className="card p-5">
@@ -332,7 +380,7 @@ export default function HostelDetailPage() {
         )}
 
         {/* Security Fee & Fines */}
-        {(hostel.securityFee > 0 || hostel.otherFines) && (
+        {(hostel.securityFee > 0 || hostel.otherFines || hostel.lockInPeriod > 0 || hostel.noticePeriod > 0) && (
           <div className="card p-5">
             <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">Fees & Policies</h2>
             {hostel.securityFee > 0 && (
@@ -341,6 +389,21 @@ export default function HostelDetailPage() {
                 <span className="text-sm font-bold text-amber-400">₹{hostel.securityFee.toLocaleString()}</span>
               </div>
             )}
+            {/* Lock-in & Notice Periods */}
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              {hostel.lockInPeriod > 0 && (
+                <div className="py-2 px-3 rounded-xl bg-slate-700/30 border border-slate-700/50">
+                  <p className="text-xs text-slate-400 font-medium">Lock-in Period</p>
+                  <p className="text-sm font-semibold text-white">{hostel.lockInPeriod} {hostel.lockInPeriod === 1 ? 'Month' : 'Months'}</p>
+                </div>
+              )}
+              {hostel.noticePeriod > 0 && (
+                <div className="py-2 px-3 rounded-xl bg-slate-700/30 border border-slate-700/50">
+                  <p className="text-xs text-slate-400 font-medium">Notice Period</p>
+                  <p className="text-sm font-semibold text-white">{hostel.noticePeriod} {hostel.noticePeriod === 1 ? 'Month' : 'Months'}</p>
+                </div>
+              )}
+            </div>
             {hostel.otherFines && (
               <div className="py-2 px-3 rounded-xl bg-slate-700/30 border border-slate-700/50">
                 <p className="text-xs text-slate-400 font-medium mb-1">Other Fines & Rules</p>
@@ -376,6 +439,10 @@ export default function HostelDetailPage() {
               <TileLayer
                 attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
                 url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+              />
+              <TileLayer
+                attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
+                url="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
               />
               <Marker position={[hostel.location.lat, hostel.location.lng]} icon={markerIcon}>
                 <Popup>{hostel.name}</Popup>

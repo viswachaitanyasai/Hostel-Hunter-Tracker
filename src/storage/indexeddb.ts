@@ -46,10 +46,40 @@ function migrateHostel(h: Hostel): Hostel {
   if (hostel.securityFee === undefined) hostel.securityFee = 0;
   if (hostel.otherFines === undefined) hostel.otherFines = '';
   if (hostel.rating === undefined) hostel.rating = 0;
+  if (hostel.type === undefined) hostel.type = 'coliving';
+  if (hostel.lockInPeriod === undefined) hostel.lockInPeriod = 0;
+  if (hostel.noticePeriod === undefined) hostel.noticePeriod = 0;
   // Migration: handle legacy hasAC field (now just part of amenities)
   if (hostel.hasAC === true && (!hostel.amenities || !hostel.amenities.includes('AC'))) {
     if (!hostel.amenities) hostel.amenities = [];
     hostel.amenities.push('AC');
+  }
+  // Migrate: remove 'Electricity Included' from amenities (now handled as dedicated fields)
+  if (hostel.amenities) {
+    hostel.amenities = hostel.amenities.filter((a: string) => a !== 'Electricity Included');
+  }
+  // Migrate food/electricity from per-rent level (old schema) to hostel level
+  if (hostel.foodIncluded === undefined) {
+    // Check if any rent row has food data (legacy per-rent schema)
+    const firstRent = hostel.rents?.[0];
+    if (firstRent && firstRent.foodIncluded !== undefined) {
+      hostel.foodIncluded = firstRent.foodIncluded;
+      hostel.foodCharges = firstRent.foodCharges ?? 0;
+      hostel.electricityType = firstRent.electricityType ?? 'included';
+      hostel.electricityAmount = firstRent.electricityAmount ?? 0;
+    } else {
+      hostel.foodIncluded = true;
+      hostel.foodCharges = 0;
+      hostel.electricityType = 'included';
+      hostel.electricityAmount = 0;
+    }
+    // Strip legacy per-rent food/electricity fields
+    if (hostel.rents) {
+      hostel.rents = hostel.rents.map((r: any) => {
+        const { foodIncluded, foodCharges, electricityType, electricityAmount, ...rest } = r;
+        return rest;
+      });
+    }
   }
   delete hostel.hasAC;
   return hostel as Hostel;

@@ -54,7 +54,16 @@ export default function HostelCard({ hostel }: HostelCardProps) {
 
       {/* Details */}
       <div className="p-3.5">
-        <h3 className="font-semibold text-white text-sm truncate">{hostel.name}</h3>
+        <div className="flex items-center gap-1.5 mb-1">
+          <h3 className="font-semibold text-white text-sm truncate">{hostel.name}</h3>
+          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full flex-shrink-0 ${
+            hostel.type === 'boys'
+              ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+              : 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+          }`}>
+            {hostel.type === 'boys' ? 'Boys' : 'Co-living'}
+          </span>
+        </div>
         <div className="flex items-center gap-1 mt-1.5 text-xs text-slate-400">
           <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />

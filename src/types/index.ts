@@ -1,3 +1,7 @@
+export type ElectricityType = 'included' | 'fixed' | 'per_unit';
+
+export type HostelType = 'boys' | 'coliving';
+
 export interface HostelRent {
   shares: number;
   rent: number;
@@ -6,10 +10,17 @@ export interface HostelRent {
 export interface Hostel {
   id: string;
   name: string;
+  type: HostelType;
   rents: HostelRent[];
   securityFee: number;
   otherFines: string;
   rating: number;
+  lockInPeriod: number;
+  noticePeriod: number;
+  foodIncluded: boolean;
+  foodCharges: number;
+  electricityType: ElectricityType;
+  electricityAmount: number;
   location: {
     lat: number;
     lng: number;
@@ -25,10 +36,17 @@ export interface Hostel {
 
 export interface HostelFormData {
   name: string;
+  type: HostelType;
   rents: HostelRent[];
   securityFee: string;
   otherFines: string;
   rating: number;
+  lockInPeriod: string;
+  noticePeriod: string;
+  foodIncluded: boolean;
+  foodCharges: string;
+  electricityType: ElectricityType;
+  electricityAmount: string;
   location: {
     lat: number;
     lng: number;
@@ -41,7 +59,6 @@ export interface HostelFormData {
 }
 
 export const AMENITIES_LIST = [
-  'Electricity Included',
   'Food',
   'Wi-Fi',
   'AC',

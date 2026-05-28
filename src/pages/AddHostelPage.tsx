@@ -5,7 +5,7 @@ import { icon } from 'leaflet';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { createHostel, updateHostel, getHostelById, fileToBase64 } from '../storage';
 import { AMENITIES_LIST } from '../types';
-import type { HostelRent } from '../types';
+import type { HostelRent, HostelType, ElectricityType } from '../types';
 
 const markerIcon = icon({
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -69,10 +69,17 @@ export default function AddHostelPage() {
   const isEditing = !!id;
 
   const [name, setName] = useState('');
+  const [hostelType, setHostelType] = useState<HostelType>('coliving');
   const [rents, setRents] = useState<HostelRent[]>(DEFAULT_SHARES);
   const [securityFee, setSecurityFee] = useState('');
   const [otherFines, setOtherFines] = useState('');
   const [rating, setRating] = useState(0);
+  const [lockInPeriod, setLockInPeriod] = useState('');
+  const [noticePeriod, setNoticePeriod] = useState('');
+  const [foodIncluded, setFoodIncluded] = useState(true);
+  const [foodCharges, setFoodCharges] = useState('');
+  const [electricityType, setElectricityType] = useState<ElectricityType>('included');
+  const [electricityAmount, setElectricityAmount] = useState('');
   const [description, setDescription] = useState('');
   const [contactNumber, setContactNumber] = useState('');
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
@@ -98,10 +105,17 @@ export default function AddHostelPage() {
             return;
           }
           setName(hostel.name);
+          setHostelType(hostel.type || 'coliving');
           setRents(hostel.rents);
           setSecurityFee(hostel.securityFee ? String(hostel.securityFee) : '');
           setOtherFines(hostel.otherFines || '');
           setRating(hostel.rating || 0);
+          setLockInPeriod(hostel.lockInPeriod ? String(hostel.lockInPeriod) : '');
+          setNoticePeriod(hostel.noticePeriod ? String(hostel.noticePeriod) : '');
+          setFoodIncluded(hostel.foodIncluded);
+          setFoodCharges(hostel.foodCharges ? String(hostel.foodCharges) : '');
+          setElectricityType(hostel.electricityType || 'included');
+          setElectricityAmount(hostel.electricityAmount ? String(hostel.electricityAmount) : '');
           setDescription(hostel.description);
           setContactNumber(hostel.contactNumber);
           setSelectedAmenities(hostel.amenities);
@@ -194,10 +208,17 @@ export default function AddHostelPage() {
     try {
       const baseData = {
         name: name.trim(),
+        type: hostelType,
         rents: validRents,
         securityFee: securityFee ? Number(securityFee) : 0,
         otherFines: otherFines.trim(),
         rating,
+        lockInPeriod: lockInPeriod ? Number(lockInPeriod) : 0,
+        noticePeriod: noticePeriod ? Number(noticePeriod) : 0,
+        foodIncluded,
+        foodCharges: foodCharges ? Number(foodCharges) : 0,
+        electricityType,
+        electricityAmount: electricityAmount ? Number(electricityAmount) : 0,
         description: description.trim(),
         contactNumber: contactNumber.trim(),
         amenities: selectedAmenities,
@@ -345,6 +366,41 @@ export default function AddHostelPage() {
             />
           </div>
 
+          {/* Target Demographic */}
+          <div>
+            <label className="input-label">Target Demographic *</label>
+            <div className="flex gap-2">
+              {(['boys', 'coliving'] as HostelType[]).map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setHostelType(type)}
+                  className={`flex-1 py-3 rounded-xl text-sm font-medium border transition-all duration-200 ${
+                    hostelType === type
+                      ? 'bg-blue-500/20 border-blue-500 text-blue-400'
+                      : 'bg-slate-800 border-slate-600 text-slate-400 hover:border-slate-500'
+                  }`}
+                >
+                  {type === 'boys' ? (
+                    <div className="flex flex-col items-center gap-1">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      Boys
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-1">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      Co-living
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Rent per share */}
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -377,7 +433,7 @@ export default function AddHostelPage() {
                       </span>
                     </div>
                   </div>
-                  <div className="relative flex-1">
+                  <div className="relative flex-[2]">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₹</span>
                     <input
                       type="number"
@@ -422,6 +478,132 @@ export default function AddHostelPage() {
               <label className="input-label">Rating</label>
               <div className="input-field flex items-center pt-2.5 pb-2">
                 <StarRating value={rating} onChange={setRating} />
+              </div>
+            </div>
+          </div>
+
+          {/* Food & Electricity (common for all sharing types) */}
+          <div className="card p-4 border border-slate-700">
+            <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">Food & Electricity</h2>
+
+            {/* Food */}
+            <div className="mb-4">
+              <label className="text-xs text-slate-400 font-medium mb-1.5 block">Food</label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFoodIncluded(true)}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all ${
+                    foodIncluded
+                      ? 'bg-green-500/20 border-green-500 text-green-400'
+                      : 'bg-slate-800 border-slate-600 text-slate-400 hover:border-slate-500'
+                  }`}
+                >
+                  Included
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFoodIncluded(false)}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all ${
+                    !foodIncluded
+                      ? 'bg-red-500/20 border-red-500 text-red-400'
+                      : 'bg-slate-800 border-slate-600 text-slate-400 hover:border-slate-500'
+                  }`}
+                >
+                  Not Included
+                </button>
+              </div>
+              {!foodIncluded && (
+                <div className="relative mt-2">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₹</span>
+                  <input
+                    type="number"
+                    value={foodCharges}
+                    onChange={(e) => setFoodCharges(e.target.value)}
+                    placeholder="Food charges per month"
+                    min="0"
+                    className="w-full bg-slate-700/50 border border-slate-600 rounded-xl pl-8 pr-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Electricity */}
+            <div>
+              <label className="text-xs text-slate-400 font-medium mb-1.5 block">Electricity</label>
+              <div className="flex gap-2">
+                {(['included', 'fixed', 'per_unit'] as ElectricityType[]).map((eType) => (
+                  <button
+                    key={eType}
+                    type="button"
+                    onClick={() => setElectricityType(eType)}
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all ${
+                      electricityType === eType
+                        ? 'bg-blue-500/20 border-blue-500 text-blue-400'
+                        : 'bg-slate-800 border-slate-600 text-slate-400 hover:border-slate-500'
+                    }`}
+                  >
+                    {eType === 'included' ? 'Included' : eType === 'fixed' ? 'Fixed Bill' : 'Per Unit'}
+                  </button>
+                ))}
+              </div>
+              {electricityType !== 'included' && (
+                <div className="relative mt-2">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₹</span>
+                  <input
+                    type="number"
+                    value={electricityAmount}
+                    onChange={(e) => setElectricityAmount(e.target.value)}
+                    placeholder={electricityType === 'fixed' ? 'Fixed amount per month' : 'Rate per unit (₹)'}
+                    min="0"
+                    className="w-full bg-slate-700/50 border border-slate-600 rounded-xl pl-8 pr-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Policy & Agreements */}
+          <div className="card p-4 border border-slate-700">
+            <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">Policy & Agreements</h2>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="input-label" htmlFor="lockInPeriod">Lock-in Period</label>
+                <div className="relative">
+                  <select
+                    id="lockInPeriod"
+                    value={lockInPeriod}
+                    onChange={(e) => setLockInPeriod(e.target.value)}
+                    className="w-full bg-slate-700/50 border border-slate-600 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all appearance-none"
+                  >
+                    <option value="">None</option>
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((m) => (
+                      <option key={m} value={m}>{m} {m === 1 ? 'Month' : 'Months'}</option>
+                    ))}
+                  </select>
+                  <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
+              <div>
+                <label className="input-label" htmlFor="noticePeriod">Notice Period</label>
+                <div className="relative">
+                  <select
+                    id="noticePeriod"
+                    value={noticePeriod}
+                    onChange={(e) => setNoticePeriod(e.target.value)}
+                    className="w-full bg-slate-700/50 border border-slate-600 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all appearance-none"
+                  >
+                    <option value="">None</option>
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((m) => (
+                      <option key={m} value={m}>{m} {m === 1 ? 'Month' : 'Months'}</option>
+                    ))}
+                  </select>
+                  <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
               </div>
             </div>
           </div>
@@ -529,6 +711,10 @@ export default function AddHostelPage() {
                 <TileLayer
                   attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
                   url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                />
+                <TileLayer
+                  attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
+                  url="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
                 />
                 {hostelLat && hostelLng && (
                   <>
