@@ -69,7 +69,7 @@ export default function AddHostelPage() {
   const isEditing = !!id;
 
   const [name, setName] = useState('');
-  const [hostelType, setHostelType] = useState<HostelType>('coliving');
+  const [hostelType, setHostelType] = useState<HostelType>('boys');
   const [rents, setRents] = useState<HostelRent[]>(DEFAULT_SHARES);
   const [securityFee, setSecurityFee] = useState('');
   const [otherFines, setOtherFines] = useState('');

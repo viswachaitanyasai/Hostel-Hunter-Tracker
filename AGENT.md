@@ -102,7 +102,7 @@ All data reads go through `migrateHostel()` which handles:
 1. Old single `rent` field → converts to `rents: [{ shares: 1, rent }]`
 2. Empty/missing `rents` → defaults to `[{ shares: 1, rent: 0 }]`
 3. Missing `securityFee`, `otherFines`, `rating` → defaults to 0, '', 0
-4. Missing `type` → defaults to `'coliving'`
+4. Missing `type` → defaults to `'boys'`
 5. Missing `lockInPeriod`, `noticePeriod` → defaults to 0
 6. Missing `foodIncluded`, `foodCharges`, `electricityType`, `electricityAmount` → defaults to `true`, 0, `'included'`, 0
 7. Legacy `hasAC: true` → pushes 'AC' into amenities array, deletes `hasAC`
