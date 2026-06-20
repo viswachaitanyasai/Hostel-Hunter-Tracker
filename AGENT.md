@@ -37,12 +37,12 @@ hostel_freebuff/
 │   │   └── useGeolocation.ts # useGeolocation() → { lat, lng, loading, error, getCurrentPosition, resetLocation }
 │   ├── components/
 │   │   ├── Layout.tsx        # Bottom nav bar (Home / Map icons) with safe-area padding
-│   │   └── HostelCard.tsx    # Card with photo, rent badge, rating badge, location, sharing options, amenity tags
+│   │   └── HostelCard.tsx    # Card with photo, rent badge, room rating badge, location, sharing options, amenity tags
 │   └── pages/
-│       ├── HomePage.tsx      # Header with search, filter panel, 2-col grid, loading skeletons, empty state, FAB
-│       ├── AddHostelPage.tsx # Full form (add + edit via /edit/:id): Camera + Gallery inputs, GPS detect, satellite map picker, amenities, star rating, rent-per-share rows
-│       ├── HostelDetailPage.tsx # Swipeable photo gallery with full-screen viewer, details, satellite mini-map, Open in Google Maps, call/edit/delete actions
-│       └── MapPage.tsx       # Full-screen satellite map with all hostel markers, popup cards with photo+details+rating+Google Maps link
+│       ├── HomePage.tsx      # Header with search, filter panel, 2-col grid, loading skeletons, empty state, FAB, export menu (Export Selected / Export All / Import JSON)
+│       ├── AddHostelPage.tsx # Full form (add + edit via /edit/:id): Camera + Gallery inputs with drag-to-reorder photos, GPS detect, satellite map picker, amenities (including Sufficient Sockets/Washing Machine/Balcony as toggles), star ratings (room/people/googleMaps/owner), rent-per-share rows, Indian comma formatting on money inputs
+│       ├── HostelDetailPage.tsx # Swipeable photo gallery with full-screen viewer (download button), details, ratings, satellite mini-map, Open in Google Maps, call/edit/delete actions
+│       └── MapPage.tsx       # Full-screen satellite map with all hostel markers, popup cards with photo+details+room rating+Google Maps link
 ├── public/
 │   ├── favicon.svg           # Hostel-building SVG icon
 │   └── icons/                # PWA app icons (192px, 512px)
@@ -70,7 +70,13 @@ interface Hostel {
   rents: HostelRent[];    // Rent options per sharing (default: 3-shares only, user can add more)
   securityFee: number;    // Security deposit in ₹
   otherFines: string;     // Free text for fines & rules
-  rating: number;         // Rating 1-5 (0 = unrated)
+  // Specific ratings (replaced old general "rating" field)
+  roomRating: number;     // 0-5
+  peopleRating: number;   // 0-5
+  googleMapsRating: number; // 0-5
+  ownerRating: number;    // 0-3
+  // Legacy rating (kept for backward compat migration)
+  rating?: number;
   lockInPeriod: number;   // Lock-in period in months (0 = none)
   noticePeriod: number;   // Notice period in months (0 = none)
   foodIncluded: boolean;  // Whether food is included in rent
@@ -85,7 +91,7 @@ interface Hostel {
   photos: string[];       // Base64 data URLs
   contactNumber: string;  // Phone number
   description: string;    // Free text description
-  amenities: string[];    // Selected from AMENITIES_LIST (AC is part of this list, no separate hasAC field)
+  amenities: string[];    // Selected from AMENITIES_LIST (TV is part of this list, no separate hasTV field)
   createdAt: string;      // ISO timestamp
   updatedAt: string;      // ISO timestamp
 }
@@ -93,21 +99,23 @@ interface Hostel {
 
 ### Amenities List
 ```
-Food, Wi-Fi, AC, Laundry, Power Backup, Parking, Gym, Kitchen Access, TV, Fridge
+Food, Wi-Fi, AC, Laundry, Power Backup, Parking, Gym, Kitchen Access, TV, Fridge, Sufficient Sockets, Washing Machine, Balcony
 ```
-*(Note: 'Electricity Included' was removed — electricity is now a dedicated hostel-level field with its own dropdown)*
+*(Note: 'Electricity Included' was removed — electricity is now a dedicated hostel-level field with its own dropdown. Sufficient Sockets, Washing Machine, and Balcony are simple toggle amenities, not separate boolean fields)*
 
 ### Migration (indexeddb.ts)
 All data reads go through `migrateHostel()` which handles:
 1. Old single `rent` field → converts to `rents: [{ shares: 1, rent }]`
 2. Empty/missing `rents` → defaults to `[{ shares: 1, rent: 0 }]`
-3. Missing `securityFee`, `otherFines`, `rating` → defaults to 0, '', 0
+3. Missing `securityFee`, `otherFines` → defaults to 0, ''
 4. Missing `type` → defaults to `'boys'`
 5. Missing `lockInPeriod`, `noticePeriod` → defaults to 0
 6. Missing `foodIncluded`, `foodCharges`, `electricityType`, `electricityAmount` → defaults to `true`, 0, `'included'`, 0
 7. Legacy `hasAC: true` → pushes 'AC' into amenities array, deletes `hasAC`
 8. Legacy per-rent food/electricity fields → extracted from first rent row to hostel-level, stripped from all rent rows
 9. Legacy 'Electricity Included' in amenities → removed (handled via dedicated fields)
+10. **New specific ratings**: Old `rating` → mapped to `roomRating` and `peopleRating`; `ownerRating` proportionally scaled (3/5); new fields default to 0
+11. **Legacy check fields → amenities**: Old `sufficientSockets: true` → pushes 'Sufficient Sockets' into amenities; same for `hasWashingMachine` → 'Washing Machine'; `hasBalcony` → 'Balcony'. Old boolean fields are deleted after migration.
 
 The migration runs on **both** `getAllHostels()` (bulk list) and `getHostel()` (single record fetch via `getHostelById()`).
 
@@ -132,12 +140,18 @@ The migration runs on **both** `getAllHostels()` (bulk list) and `getHostel()` (
 
 ## Key Features & Design Decisions
 
+### HomePage — Export/Import
+- Export menu button in header with dropdown:
+  - **Export Selected** — enters selection mode: checkboxes appear on hostel cards, user selects/unselects, then exports as JSON
+  - **Export All** — exports all hostels as JSON file with version info
+  - **Import** — hidden file input for `.json` files, validates format via `parseImportFile()`, imports with new IDs (no overwrites), shows status toast
+
 ### HomePage — Filters Panel
 - Sticky header with search bar + filter toggle button
 - Filter panel includes:
   - **Rent Range**: Min/max fields (compares against cheapest rent from rents array)
   - **Max Room Sharing**: 1–4 share buttons
-  - **Minimum Rating**: 0–5 star filters (toggle on/off)
+  - **Minimum Room Rating**: 0–5 star filters (toggle on/off, uses `roomRating`)
   - **Amenities**: Multi-select from AMENITIES_LIST
 - Active filter count badge on the filter icon
 - "Clear all filters" link when filters active
@@ -145,7 +159,7 @@ The migration runs on **both** `getAllHostels()` (bulk list) and `getHostel()` (
 - Floating action button (FAB) to add new hostel
 
 ### AddHostelPage — Form
-- **Photos**: Two buttons — Camera (`capture="environment"`, one at a time) and Gallery (`multiple`, multi-select). Both reset `e.target.value` after selection to allow re-capture. Photo grid with hover delete button.
+- **Photos**: Two buttons — Camera (`capture="environment"`, one at a time) and Gallery (`multiple`, multi-select). Both reset `e.target.value` after selection to allow re-capture. Photo grid with drag-and-drop reorder (desktop) + arrow buttons (mobile), number badges, hover delete button, and hint about first photo being the card thumbnail.
 - **Name**: Text input, required
 - **Target Demographic**: Selection chips — "Boys" (blue, person icon) or "Co-living" (purple, group icon). Required.
 - **Rent per Sharing**: Dynamic rows with shares (number) + rent (₹). Default: one row at 3 shares. "Add Share" button creates new row with next sequential share count. Remove button appears when > 1 row.
@@ -153,14 +167,19 @@ The migration runs on **both** `getAllHostels()` (bulk list) and `getHostel()` (
   - **Food**: Toggle buttons "Included" (green) / "Not Included" (red). If not included, shows ₹ input for monthly food charges.
   - **Electricity**: Three-button selection — "Included" (default), "Fixed Bill", "Per Unit". If Fixed Bill or Per Unit, shows ₹ input for the amount.
 - **Security Fee**: Number input (₹)
-- **Rating**: Interactive 1–5 star selector (yellow fill on selected)
+- **Ratings** (replaced old general rating):
+  - **Room Rating**: Interactive 1–5 star selector
+  - **People Rating**: Interactive 1–5 star selector
+  - **Google Maps Review**: Interactive 1–5 star selector
+  - **Owner Rating**: Interactive 1–3 star selector
+- **Indian number formatting**: Rent, security fee, food charges, and electricity amount inputs show Indian-style commas (`Intl.NumberFormat('en-IN')`). They use `type="text"` + `inputMode="numeric"` with a `stripNonDigits()` helper to strip non-numeric characters on change.
 - **Policy & Agreements**: New card with two dropdown selects:
   - **Lock-in Period**: Dropdown (None / 1–12 months)
   - **Notice Period**: Dropdown (None / 1–12 months)
 - **Other Fines & Rules**: Free text area
 - **Contact Number**: Phone input
 - **Description**: Text area
-- **Amenities**: Toggle buttons from AMENITIES_LIST (Electricity Included removed from list)
+- **Amenities**: Toggle buttons from AMENITIES_LIST (TV is in this list; Electricity Included removed)
 - **Location**: 
   - "Detect GPS" button uses browser Geolocation API → auto-fills position on map
   - **Satellite map** (ESRI World Imagery + label overlay) — tap to set/adjust marker position, city names visible
@@ -176,24 +195,24 @@ The migration runs on **both** `getAllHostels()` (bulk list) and `getHostel()` (
   - Dot indicators at bottom
 - **Full-Screen Viewer**: Tap photo to open full-screen overlay with:
   - Dark backdrop (`bg-black/95 backdrop-blur-xl`)
-  - Close button (X), photo counter ("2 / 5"), dot strip
+  - Close button (X), download button (anchor with `download` attribute), photo counter ("2 / 5"), dot strip
   - Touch swipe + desktop arrows for navigation
   - `object-contain` to fit image within viewport
 - **Gradient overlay**: `pointer-events-none` so it doesn't block image clicks
-- **Content sections**: Name with type badge (blue "Boys" or purple "Co-living"), address, rating stars, cheapest rent, tags (call, sharing count), rent breakdown, **Food & Electricity card** (hostel-level, 2-column grid), description, amenities, fees & policies (security fee, lock-in period, notice period, fines), satellite mini-map with label overlay, action buttons (View on Map, Edit, Delete)
+- **Content sections**: Name with type badge, address, **Ratings (Room/People/Google Maps/Owner)**, cheapest rent, tags (call, sharing count), rent breakdown, **Food & Electricity card**, description, amenities, fees & policies, satellite mini-map, action buttons
 - **Open in Google Maps**: Button opens `https://www.google.com/maps?q=lat,lng` in new tab
 - **Delete**: Confirmation modal
 - **Timestamps**: Creation and last updated date
 
 ### MapPage — Satellite View
 - ESRI World Imagery satellite tiles + **World Boundaries and Places label overlay** (city names, roads, boundaries visible on top of satellite)
-- Hostel markers with popup cards showing: photo thumbnail, name, cheapest rent, rating stars, amenity tags (max 3), "View Details" button + "Open in Google Maps" icon button
+- Hostel markers with popup cards showing: photo thumbnail, name, cheapest rent, room rating stars, amenity tags (max 3), "View Details" button + "Open in Google Maps" icon button
 - Center calculated as average of all hostel coordinates (defaults to India center if none)
 - Zoom level adapts: 12 if hostels exist, 5 if empty
 
 ### HostelCard — Grid Card
 - Aspect ratio 4:3 photo with hover zoom effect
-- Badges: Rent (top-right), Rating (bottom-left, yellow stars), Photo count (bottom-right)
+- Badges: Rent (top-right), Room Rating (bottom-left, yellow stars), Photo count (bottom-right)
 - Details: **Name with type badge** (blue "Boys" or purple "Co-living"), address with location icon, sharing options summary line, amenity tags (max 3 + "+N" overflow)
 - Click navigates to `/hostel/:id`
 - Hover: slight lift + border glow
@@ -207,17 +226,20 @@ The migration runs on **both** `getAllHostels()` (bulk list) and `getHostel()` (
 ## Key Design Decisions
 
 1. **No separate AC field**: AC was originally a boolean `hasAC` toggle. It's now part of the amenities list. Old data with `hasAC: true` auto-migrates to add "AC" to amenities.
-2. **Satellite maps everywhere**: All maps (add/edit form, detail page, map page) use ESRI World Imagery tiles + ESRI World Boundaries and Places label overlay for city names, roads, and boundaries. Free, no API key required.
-3. **Food & Electricity are hostel-level**: These fields are common across all sharing types, set once for the entire hostel (not per-rent-row).
-4. **Electricity removed from amenities**: 'Electricity Included' was removed from the amenities chips list and replaced with a dedicated dropdown (Included / Fixed Bill / Per Unit Meter) with a conditional amount input.
-5. **Target Demographic**: Selection chips (Boys / Co-living) required when adding/editing a hostel. Displayed as a badge on cards and detail page.
-6. **Policy & Agreements**: Lock-in period and notice period in months stored at hostel level, displayed in the Fees & Policies section.
-7. **Camera + Gallery**: Two separate file inputs for photo capture. Camera requires multiple taps for multiple photos.
-4. **GPS Flow**: User clicks "Detect GPS" → browser geolocation API → position auto-fills on map → user can tap to adjust → reverse geocodes via Nominatim API.
-5. **Rent sharing**: Default form shows only 3-share option. User adds more rows as needed. Validates at least one rent > 0.
-6. **Full-screen photo viewer**: Click/tap photo → modal overlay with swipe support, close button, counter, dots, desktop arrows.
-7. **PWA**: Installs on mobile home screen via Chrome's "Add to Home Screen". Works offline thanks to Workbox service worker. Map tiles cached with CacheFirst strategy (200 entries, 30 days).
-8. **Dark Theme**: Full dark theme with slate/blue color palette. Smooth transitions and hover states.
+2. **TV stays in amenities**: TV is part of the general amenities list (AMENITIES_LIST), not a separate boolean field.
+3. **Specific ratings replace general rating**: The old single `rating` field is replaced by four specific ratings (room, people, Google Maps, owner). Owner rating is out of 3 stars, the rest are out of 5.
+4. **Washing Machine**: Uses a boolean + count pattern — checkbox to indicate presence, plus a number input for count when checked.
+5. **Satellite maps everywhere**: All maps use ESRI World Imagery tiles + ESRI World Boundaries and Places label overlay. Free, no API key required.
+6. **Food & Electricity are hostel-level**: These fields are common across all sharing types, set once for the entire hostel (not per-rent-row).
+7. **Electricity removed from amenities**: 'Electricity Included' was removed from the amenities chips list and replaced with a dedicated dropdown (Included / Fixed Bill / Per Unit Meter) with a conditional amount input.
+8. **Target Demographic**: Selection chips (Boys / Co-living) required when adding/editing a hostel. Displayed as a badge on cards and detail page.
+9. **Policy & Agreements**: Lock-in period and notice period in months stored at hostel level, displayed in the Fees & Policies section.
+10. **Camera + Gallery**: Two separate file inputs for photo capture. Camera requires multiple taps for multiple photos.
+11. **GPS Flow**: User clicks "Detect GPS" → browser geolocation API → position auto-fills on map → user can tap to adjust → reverse geocodes via Nominatim API.
+12. **Rent sharing**: Default form shows only 3-share option. User adds more rows as needed. Validates at least one rent > 0.
+13. **Full-screen photo viewer**: Click/tap photo → modal overlay with swipe support, close button, counter, dots, desktop arrows.
+14. **PWA**: Installs on mobile home screen via Chrome's "Add to Home Screen". Works offline thanks to Workbox service worker. Map tiles cached with CacheFirst strategy (200 entries, 30 days).
+15. **Dark Theme**: Full dark theme with slate/blue color palette. Smooth transitions and hover states.
 
 ## Scripts
 

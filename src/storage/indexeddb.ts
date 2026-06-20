@@ -45,19 +45,41 @@ function migrateHostel(h: Hostel): Hostel {
   }
   if (hostel.securityFee === undefined) hostel.securityFee = 0;
   if (hostel.otherFines === undefined) hostel.otherFines = '';
-  if (hostel.rating === undefined) hostel.rating = 0;
   if (hostel.type === undefined) hostel.type = 'coliving';
   if (hostel.lockInPeriod === undefined) hostel.lockInPeriod = 0;
   if (hostel.noticePeriod === undefined) hostel.noticePeriod = 0;
+
+  // Migrate: old general rating → new specific ratings
+  if (hostel.roomRating === undefined) hostel.roomRating = hostel.rating || 0;
+  if (hostel.peopleRating === undefined) hostel.peopleRating = hostel.rating || 0;
+  if (hostel.googleMapsRating === undefined) hostel.googleMapsRating = 0;
+  if (hostel.ownerRating === undefined) hostel.ownerRating = hostel.rating ? Math.min(3, Math.round(hostel.rating * 3 / 5)) : 0;
+  // Keep old rating for backward compatibility
+  if (hostel.rating === undefined) hostel.rating = 0;
+
+  // Migrate: old dedicated boolean check fields → amenities array
+  if (!hostel.amenities) hostel.amenities = [];
+  if (hostel.sufficientSockets === true && !hostel.amenities.includes('Sufficient Sockets')) {
+    hostel.amenities.push('Sufficient Sockets');
+  }
+  if (hostel.hasWashingMachine === true && !hostel.amenities.includes('Washing Machine')) {
+    hostel.amenities.push('Washing Machine');
+  }
+  if (hostel.hasBalcony === true && !hostel.amenities.includes('Balcony')) {
+    hostel.amenities.push('Balcony');
+  }
+  // Clean up old boolean fields if they exist
+  delete hostel.sufficientSockets;
+  delete hostel.hasWashingMachine;
+  delete hostel.washingMachineCount;
+  delete hostel.hasBalcony;
+
   // Migration: handle legacy hasAC field (now just part of amenities)
-  if (hostel.hasAC === true && (!hostel.amenities || !hostel.amenities.includes('AC'))) {
-    if (!hostel.amenities) hostel.amenities = [];
+  if (hostel.hasAC === true && !hostel.amenities.includes('AC')) {
     hostel.amenities.push('AC');
   }
   // Migrate: remove 'Electricity Included' from amenities (now handled as dedicated fields)
-  if (hostel.amenities) {
-    hostel.amenities = hostel.amenities.filter((a: string) => a !== 'Electricity Included');
-  }
+  hostel.amenities = hostel.amenities.filter((a: string) => a !== 'Electricity Included');
   // Migrate food/electricity from per-rent level (old schema) to hostel level
   if (hostel.foodIncluded === undefined) {
     // Check if any rent row has food data (legacy per-rent schema)

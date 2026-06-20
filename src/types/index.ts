@@ -14,7 +14,13 @@ export interface Hostel {
   rents: HostelRent[];
   securityFee: number;
   otherFines: string;
-  rating: number;
+  // Ratings - replacing the old general "rating" field
+  roomRating: number;        // 0-5
+  peopleRating: number;      // 0-5
+  googleMapsRating: number;  // 0-5
+  ownerRating: number;       // 0-3
+  // Legacy rating kept for migration
+  rating?: number;
   lockInPeriod: number;
   noticePeriod: number;
   foodIncluded: boolean;
@@ -40,7 +46,11 @@ export interface HostelFormData {
   rents: HostelRent[];
   securityFee: string;
   otherFines: string;
-  rating: number;
+  // Ratings
+  roomRating: number;
+  peopleRating: number;
+  googleMapsRating: number;
+  ownerRating: number;
   lockInPeriod: string;
   noticePeriod: string;
   foodIncluded: boolean;
@@ -69,4 +79,7 @@ export const AMENITIES_LIST = [
   'Kitchen Access',
   'TV',
   'Fridge',
+  'Sufficient Sockets',
+  'Washing Machine',
+  'Balcony',
 ] as const;

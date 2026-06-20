@@ -34,12 +34,12 @@ function HostelPopupContent({ hostel, onViewDetails }: { hostel: Hostel; onViewD
       )}
       <h3 className="font-semibold text-sm text-slate-800">{hostel.name}</h3>
       <p className="text-blue-600 font-bold text-sm mt-1">₹{cheapestRent.toLocaleString()}/mo</p>
-      {hostel.rating > 0 && (
+      {hostel.roomRating > 0 && (
         <div className="flex items-center gap-0.5 mt-1">
           {[1, 2, 3, 4, 5].map((star) => (
             <svg
               key={star}
-              className={`w-3 h-3 ${star <= hostel.rating ? 'text-yellow-400' : 'text-gray-300'}`}
+              className={`w-3 h-3 ${star <= hostel.roomRating ? 'text-yellow-400' : 'text-gray-300'}`}
               fill="currentColor"
               viewBox="0 0 24 24"
             >

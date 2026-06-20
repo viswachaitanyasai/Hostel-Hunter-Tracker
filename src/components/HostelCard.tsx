@@ -3,17 +3,20 @@ import type { Hostel } from '../types';
 
 interface HostelCardProps {
   hostel: Hostel;
+  disableNavigation?: boolean;
 }
 
-export default function HostelCard({ hostel }: HostelCardProps) {
+export default function HostelCard({ hostel, disableNavigation }: HostelCardProps) {
   const navigate = useNavigate();
   const hasPhoto = hostel.photos.length > 0;
   const cheapestRent = hostel.rents.length > 0 ? Math.min(...hostel.rents.map((r) => r.rent)) : 0;
 
   return (
     <div
-      onClick={() => navigate(`/hostel/${hostel.id}`)}
-      className="card cursor-pointer hover:border-slate-600 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/5 hover:-translate-y-0.5 active:scale-[0.98]"
+      onClick={() => !disableNavigation && navigate(`/hostel/${hostel.id}`)}
+      className={`card transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/5 hover:-translate-y-0.5 active:scale-[0.98] ${
+        disableNavigation ? '' : 'cursor-pointer hover:border-slate-600'
+      }`}
     >
       {/* Photo */}
       <div className="aspect-[4/3] bg-slate-700 relative overflow-hidden">
@@ -35,13 +38,13 @@ export default function HostelCard({ hostel }: HostelCardProps) {
         <div className="absolute top-2 right-2 bg-blue-500/90 backdrop-blur-sm text-white text-xs font-bold px-2.5 py-1 rounded-full">
           ₹{cheapestRent.toLocaleString()}/mo
         </div>
-        {/* Rating badge */}
-        {hostel.rating > 0 && (
+        {/* Rating badge - show room rating */}
+        {hostel.roomRating > 0 && (
           <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-sm text-yellow-400 text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
             <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
             </svg>
-            {hostel.rating}
+            {hostel.roomRating}
           </div>
         )}
         {/* Photo count */}

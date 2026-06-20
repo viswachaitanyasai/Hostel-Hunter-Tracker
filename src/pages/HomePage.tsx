@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import HostelCard from '../components/HostelCard';
-import { listHostels } from '../storage';
+import { listHostels, exportHostels, triggerDownload, parseImportFile, importHostels } from '../storage';
 import { AMENITIES_LIST } from '../types';
 import type { Hostel } from '../types';
 
@@ -29,6 +29,12 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<Filters>(defaultFilters);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importStatus, setImportStatus] = useState('');
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadHostels();
@@ -83,8 +89,8 @@ export default function HomePage() {
       if (!hasAll) return false;
     }
 
-    // Rating
-    if (filters.minRating > 0 && h.rating < filters.minRating) return false;
+    // Rating - use roomRating as the primary filter
+    if (filters.minRating > 0 && h.roomRating < filters.minRating) return false;
 
     // Max shares (hostel must have an option with this many or fewer shares)
     if (filters.maxShares) {
@@ -142,6 +148,67 @@ export default function HomePage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
                 </svg>
               </button>
+              {/* Export / Import menu */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                  className="p-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors border border-slate-700"
+                  aria-label="Export or import data"
+                >
+                  <svg className="w-5 h-5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                </button>
+                {showExportMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowExportMenu(false)} />
+                    <div className="absolute right-0 top-full mt-1 z-50 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl py-1 min-w-[180px]">
+                      <button
+                        onClick={() => {
+                          setShowExportMenu(false);
+                          setSelectionMode(true);
+                          setSelectedIds(new Set());
+                        }}
+                        className="w-full text-left px-4 py-2.5 text-sm text-slate-200 hover:bg-slate-700 transition-colors flex items-center gap-2"
+                        disabled={hostels.length === 0}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                        </svg>
+                        Export Selected
+                      </button>
+                      <div className="border-t border-slate-700 mx-2 my-1" />
+                      <button
+                        onClick={() => {
+                          setShowExportMenu(false);
+                          const blob = exportHostels(hostels);
+                          const date = new Date().toISOString().split('T')[0];
+                          triggerDownload(blob, `hostels_all_${date}.json`);
+                        }}
+                        className="w-full text-left px-4 py-2.5 text-sm text-slate-200 hover:bg-slate-700 transition-colors flex items-center gap-2"
+                        disabled={hostels.length === 0}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Export All ({hostels.length})
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowExportMenu(false);
+                          importInputRef.current?.click();
+                        }}
+                        className="w-full text-left px-4 py-2.5 text-sm text-slate-200 hover:bg-slate-700 transition-colors flex items-center gap-2"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L5 8m4-4v12" />
+                        </svg>
+                        Import
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
@@ -221,10 +288,10 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Rating */}
+            {/* Room Rating filter */}
             <div>
               <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2 block">
-                Minimum Rating
+                Minimum Room Rating
               </label>
               <div className="flex gap-2">
                 {[0, 1, 2, 3, 4, 5].map((n) => (
@@ -320,14 +387,122 @@ export default function HomePage() {
             <p className="text-xs text-slate-500 mb-3">
               {filteredHostels.length} {filteredHostels.length === 1 ? 'hostel' : 'hostels'} found
             </p>
+            {selectionMode && (
+              <div className="flex items-center justify-between mb-3 px-1">
+                <span className="text-xs text-slate-400">
+                  {selectedIds.size} selected
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      const blob = exportHostels(filteredHostels.filter(h => selectedIds.has(h.id)));
+                      const date = new Date().toISOString().split('T')[0];
+                      triggerDownload(blob, `hostels_selected_${date}.json`);
+                      setSelectionMode(false);
+                      setSelectedIds(new Set());
+                    }}
+                    disabled={selectedIds.size === 0}
+                    className="text-xs px-3 py-1.5 bg-blue-500 text-white rounded-xl hover:bg-blue-400 transition-colors disabled:opacity-50"
+                  >
+                    Export Selected ({selectedIds.size})
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectionMode(false);
+                      setSelectedIds(new Set());
+                    }}
+                    className="text-xs px-3 py-1.5 bg-slate-700 text-slate-300 rounded-xl hover:bg-slate-600 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               {filteredHostels.map((hostel) => (
-                <HostelCard key={hostel.id} hostel={hostel} />
+                selectionMode ? (
+                  <div key={hostel.id} className="relative">
+                    <div
+                      onClick={() => {
+                        setSelectedIds((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(hostel.id)) next.delete(hostel.id);
+                          else next.add(hostel.id);
+                          return next;
+                        });
+                      }}
+                      className="relative"
+                    >
+                      <HostelCard hostel={hostel} disableNavigation />
+                    </div>
+                    {/* Selection checkbox */}
+                    <div className={`absolute top-2 left-2 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all z-10 ${
+                      selectedIds.has(hostel.id)
+                        ? 'bg-blue-500 border-blue-500'
+                        : 'bg-black/40 border-white/70'
+                    }`}>
+                      {selectedIds.has(hostel.id) && (
+                        <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <HostelCard key={hostel.id} hostel={hostel} />
+                )
               ))}
             </div>
           </>
         )}
       </div>
+
+      {/* Import status toast */}
+      {importStatus && (
+        <div className="fixed top-4 left-4 right-4 z-50 max-w-lg mx-auto">
+          <div className={`px-4 py-3 rounded-xl border shadow-2xl text-sm font-medium ${
+            importStatus.startsWith('Error')
+              ? 'bg-red-500/20 border-red-500/30 text-red-400'
+              : 'bg-green-500/20 border-green-500/30 text-green-400'
+          }`}>
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={importStatus.startsWith('Error') ? 'M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' : 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'} />
+              </svg>
+              {importStatus}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hidden file input for import */}
+      <input
+        ref={importInputRef}
+        type="file"
+        accept=".json"
+        className="hidden"
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          setImporting(true);
+          setImportStatus('Importing...');
+          try {
+            const text = await file.text();
+            const { hostels: parsedHostels } = parseImportFile(text);
+            const count = await importHostels(parsedHostels);
+            setImportStatus(`Successfully imported ${count} ${count === 1 ? 'hostel' : 'hostels'}!`);
+            // Reload hostels
+            const data = await listHostels();
+            setHostels(data);
+          } catch (err: any) {
+            setImportStatus(`Error: ${err.message || 'Failed to import'}`);
+          } finally {
+            setImporting(false);
+            e.target.value = '';
+            setTimeout(() => setImportStatus(''), 4000);
+          }
+        }}
+      />
 
       {/* Quick add button when hostels exist */}
       {!loading && filteredHostels.length > 0 && (

@@ -31,16 +31,16 @@ function LocationPicker({ onLocationChange }: { onLocationChange: (lat: number, 
   return null;
 }
 
-function StarRating({ value, onChange, readonly = false }: { value: number; onChange?: (v: number) => void; readonly?: boolean }) {
+function StarRating({ value, onChange, maxStars = 5 }: { value: number; onChange?: (v: number) => void; maxStars?: number }) {
   return (
     <div className="flex items-center gap-1">
-      {[1, 2, 3, 4, 5].map((star) => (
+      {Array.from({ length: maxStars }, (_, i) => i + 1).map((star) => (
         <button
           key={star}
           type="button"
-          disabled={readonly}
-          onClick={() => onChange?.(star)}
-          className={`transition-all duration-150 ${readonly ? 'cursor-default' : 'cursor-pointer hover:scale-110'}`}
+          disabled={!onChange}
+          onClick={() => onChange?.(star === value ? 0 : star)}
+          className={`transition-all duration-150 ${onChange ? 'cursor-pointer hover:scale-110' : 'cursor-default'}`}
         >
           <svg
             className={`w-6 h-6 ${star <= value ? 'text-yellow-400' : 'text-slate-600'}`}
@@ -53,6 +53,22 @@ function StarRating({ value, onChange, readonly = false }: { value: number; onCh
       ))}
     </div>
   );
+}
+
+function formatIndianNumber(numStr: string): string {
+  if (!numStr) return '';
+  const num = Number(numStr);
+  if (isNaN(num)) return numStr;
+  return new Intl.NumberFormat('en-IN').format(num);
+}
+
+function stripNonDigits(val: string): string {
+  let out = '';
+  for (let i = 0; i < val.length; i++) {
+    const c = val.charCodeAt(i);
+    if (c >= 48 && c <= 57) out += val[i];
+  }
+  return out;
 }
 
 const DEFAULT_SHARES: HostelRent[] = [
@@ -73,7 +89,12 @@ export default function AddHostelPage() {
   const [rents, setRents] = useState<HostelRent[]>(DEFAULT_SHARES);
   const [securityFee, setSecurityFee] = useState('');
   const [otherFines, setOtherFines] = useState('');
-  const [rating, setRating] = useState(0);
+  // Ratings
+  const [roomRating, setRoomRating] = useState(0);
+  const [peopleRating, setPeopleRating] = useState(0);
+  const [ownerRating, setOwnerRating] = useState(0);
+  const [googleMapsRating, setGoogleMapsRating] = useState(0);
+  // Existing fields
   const [lockInPeriod, setLockInPeriod] = useState('');
   const [noticePeriod, setNoticePeriod] = useState('');
   const [foodIncluded, setFoodIncluded] = useState(true);
@@ -85,6 +106,8 @@ export default function AddHostelPage() {
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
   const [photos, setPhotos] = useState<string[]>([]);
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
+  const dragIndexRef = useRef<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   // Location state
   const [hostelLat, setHostelLat] = useState<number | null>(null);
@@ -109,7 +132,10 @@ export default function AddHostelPage() {
           setRents(hostel.rents);
           setSecurityFee(hostel.securityFee ? String(hostel.securityFee) : '');
           setOtherFines(hostel.otherFines || '');
-          setRating(hostel.rating || 0);
+          setRoomRating(hostel.roomRating || 0);
+          setPeopleRating(hostel.peopleRating || 0);
+          setGoogleMapsRating(hostel.googleMapsRating || 0);
+          setOwnerRating(hostel.ownerRating || 0);
           setLockInPeriod(hostel.lockInPeriod ? String(hostel.lockInPeriod) : '');
           setNoticePeriod(hostel.noticePeriod ? String(hostel.noticePeriod) : '');
           setFoodIncluded(hostel.foodIncluded);
@@ -172,6 +198,45 @@ export default function AddHostelPage() {
     setPhotoFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const movePhoto = (fromIndex: number, toIndex: number) => {
+    if (toIndex < 0 || toIndex >= photos.length) return;
+    setPhotos((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
+    setPhotoFiles((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
+  };
+
+  const handleDragStart = (index: number) => {
+    dragIndexRef.current = index;
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    setDragOverIndex(index);
+  };
+
+  const handleDrop = (index: number) => {
+    const fromIndex = dragIndexRef.current;
+    if (fromIndex !== null && fromIndex !== index) {
+      movePhoto(fromIndex, index);
+    }
+    dragIndexRef.current = null;
+    setDragOverIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    dragIndexRef.current = null;
+    setDragOverIndex(null);
+  };
+
   const updateRent = (index: number, field: 'shares' | 'rent', value: number) => {
     setRents((prev) => prev.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
   };
@@ -212,7 +277,11 @@ export default function AddHostelPage() {
         rents: validRents,
         securityFee: securityFee ? Number(securityFee) : 0,
         otherFines: otherFines.trim(),
-        rating,
+        roomRating,
+        peopleRating,
+        googleMapsRating,
+        ownerRating,
+        rating: roomRating, // Keep backward compat
         lockInPeriod: lockInPeriod ? Number(lockInPeriod) : 0,
         noticePeriod: noticePeriod ? Number(noticePeriod) : 0,
         foodIncluded,
@@ -285,75 +354,7 @@ export default function AddHostelPage() {
             </div>
           )}
 
-          {/* Photos */}
-          <div>
-            <label className="input-label">Photos</label>
-            {/* Photo grid */}
-            {photos.length > 0 && (
-              <div className="grid grid-cols-4 gap-2 mb-3">
-                {photos.map((photo, index) => (
-                  <div key={index} className="relative aspect-square rounded-xl overflow-hidden bg-slate-700 group">
-                    <img src={photo} alt={`Photo ${index + 1}`} className="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => removePhoto(index)}
-                      className="absolute top-1 right-1 w-6 h-6 bg-black/60 backdrop-blur-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            {/* Action buttons */}
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => cameraInputRef.current?.click()}
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-slate-600 hover:border-blue-500/50 text-slate-400 hover:text-blue-400 transition-all duration-200 bg-slate-800/50"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                <span className="text-sm font-medium">Camera</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => galleryInputRef.current?.click()}
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-slate-600 hover:border-blue-500/50 text-slate-400 hover:text-blue-400 transition-all duration-200 bg-slate-800/50"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <span className="text-sm font-medium">Gallery</span>
-              </button>
-            </div>
-            <p className="text-xs text-slate-500 mt-1.5">
-              Camera takes one photo at a time (tap multiple times). Gallery lets you select multiple.
-            </p>
-            {/* Hidden inputs */}
-            <input
-              ref={cameraInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={handlePhotoSelect}
-              className="hidden"
-            />
-            <input
-              ref={galleryInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handlePhotoSelect}
-              className="hidden"
-            />
-          </div>
-
-          {/* Name */}
+          {/* 1. Hostel Name */}
           <div>
             <label className="input-label" htmlFor="name">Hostel Name *</label>
             <input
@@ -366,7 +367,7 @@ export default function AddHostelPage() {
             />
           </div>
 
-          {/* Target Demographic */}
+          {/* 2. Target Demographic */}
           <div>
             <label className="input-label">Target Demographic *</label>
             <div className="flex gap-2">
@@ -401,7 +402,33 @@ export default function AddHostelPage() {
             </div>
           </div>
 
-          {/* Rent per share */}
+          {/* 3. Contact Number */}
+          <div>
+            <label className="input-label" htmlFor="contact">Contact Number</label>
+            <input
+              id="contact"
+              type="tel"
+              value={contactNumber}
+              onChange={(e) => setContactNumber(e.target.value)}
+              placeholder="+91 98765 43210"
+              className="input-field"
+            />
+          </div>
+
+          {/* 4. Description */}
+          <div>
+            <label className="input-label" htmlFor="description">Description</label>
+            <textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Describe the hostel facilities, rooms, rules..."
+              rows={3}
+              className="input-field resize-none"
+            />
+          </div>
+
+          {/* 5. Rent per Sharing */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="input-label mb-0">Rent per Sharing *</label>
@@ -436,11 +463,13 @@ export default function AddHostelPage() {
                   <div className="relative flex-[2]">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₹</span>
                     <input
-                      type="number"
-                      value={rentItem.rent || ''}
-                      onChange={(e) => updateRent(index, 'rent', Number(e.target.value))}
+                      type="text"
+                      inputMode="numeric"
+                      value={rentItem.rent ? formatIndianNumber(String(rentItem.rent)) : ''}
+                      onChange={(e) => {
+                        updateRent(index, 'rent', Number(stripNonDigits(e.target.value)));
+                      }}
                       placeholder="Rent"
-                      min="0"
                       className="w-full bg-slate-700/50 border border-slate-600 rounded-xl pl-8 pr-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
                     />
                   </div>
@@ -460,29 +489,26 @@ export default function AddHostelPage() {
             </div>
           </div>
 
-          {/* Security Fee & Rating row */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="input-label" htmlFor="securityFee">Security Fee (₹)</label>
+          {/* 6. Security Fee */}
+          <div>
+            <label className="input-label" htmlFor="securityFee">Security Fee (₹)</label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₹</span>
               <input
                 id="securityFee"
-                type="number"
-                value={securityFee}
-                onChange={(e) => setSecurityFee(e.target.value)}
-                placeholder="5000"
-                min="0"
-                className="input-field"
+                type="text"
+                inputMode="numeric"
+                value={securityFee ? formatIndianNumber(securityFee) : ''}
+                onChange={(e) => {
+                  setSecurityFee(stripNonDigits(e.target.value));
+                }}
+                placeholder="5,000"
+                className="input-field pl-8"
               />
-            </div>
-            <div>
-              <label className="input-label">Rating</label>
-              <div className="input-field flex items-center pt-2.5 pb-2">
-                <StarRating value={rating} onChange={setRating} />
-              </div>
             </div>
           </div>
 
-          {/* Food & Electricity (common for all sharing types) */}
+          {/* 7. Food & Electricity */}
           <div className="card p-4 border border-slate-700">
             <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">Food & Electricity</h2>
 
@@ -517,11 +543,13 @@ export default function AddHostelPage() {
                 <div className="relative mt-2">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₹</span>
                   <input
-                    type="number"
-                    value={foodCharges}
-                    onChange={(e) => setFoodCharges(e.target.value)}
+                    type="text"
+                    inputMode="numeric"
+                    value={foodCharges ? formatIndianNumber(foodCharges) : ''}
+                    onChange={(e) => {
+                      setFoodCharges(stripNonDigits(e.target.value));
+                    }}
                     placeholder="Food charges per month"
-                    min="0"
                     className="w-full bg-slate-700/50 border border-slate-600 rounded-xl pl-8 pr-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
                   />
                 </div>
@@ -551,11 +579,13 @@ export default function AddHostelPage() {
                 <div className="relative mt-2">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₹</span>
                   <input
-                    type="number"
-                    value={electricityAmount}
-                    onChange={(e) => setElectricityAmount(e.target.value)}
+                    type="text"
+                    inputMode="numeric"
+                    value={electricityAmount ? formatIndianNumber(electricityAmount) : ''}
+                    onChange={(e) => {
+                      setElectricityAmount(stripNonDigits(e.target.value));
+                    }}
                     placeholder={electricityType === 'fixed' ? 'Fixed amount per month' : 'Rate per unit (₹)'}
-                    min="0"
                     className="w-full bg-slate-700/50 border border-slate-600 rounded-xl pl-8 pr-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
                   />
                 </div>
@@ -563,7 +593,7 @@ export default function AddHostelPage() {
             </div>
           </div>
 
-          {/* Policy & Agreements */}
+          {/* 8. Policy & Agreements */}
           <div className="card p-4 border border-slate-700">
             <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">Policy & Agreements</h2>
             <div className="grid grid-cols-2 gap-3">
@@ -608,7 +638,7 @@ export default function AddHostelPage() {
             </div>
           </div>
 
-          {/* Other Fines */}
+          {/* 9. Other Fines & Rules */}
           <div>
             <label className="input-label" htmlFor="otherFines">Other Fines & Rules</label>
             <textarea
@@ -621,32 +651,7 @@ export default function AddHostelPage() {
             />
           </div>
 
-          {/* Contact & Description */}
-          <div>
-            <label className="input-label" htmlFor="contact">Contact Number</label>
-            <input
-              id="contact"
-              type="tel"
-              value={contactNumber}
-              onChange={(e) => setContactNumber(e.target.value)}
-              placeholder="+91 98765 43210"
-              className="input-field"
-            />
-          </div>
-
-          <div>
-            <label className="input-label" htmlFor="description">Description</label>
-            <textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe the hostel facilities, rooms, rules..."
-              rows={3}
-              className="input-field resize-none"
-            />
-          </div>
-
-          {/* Amenities */}
+          {/* 10. Amenities */}
           <div>
             <label className="input-label">Amenities</label>
             <div className="flex flex-wrap gap-2">
@@ -667,7 +672,36 @@ export default function AddHostelPage() {
             </div>
           </div>
 
-          {/* Location */}
+          {/* 11-14. Ratings */}
+          <div className="card p-4 border border-slate-700">
+            <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-4">Ratings</h2>
+
+            {/* Room Rating */}
+            <div className="mb-4">
+              <label className="text-xs text-slate-400 font-medium mb-1.5 block">Room Rating</label>
+              <StarRating value={roomRating} onChange={setRoomRating} maxStars={5} />
+            </div>
+
+            {/* People/Vibe Rating */}
+            <div className="mb-4">
+              <label className="text-xs text-slate-400 font-medium mb-1.5 block">People/Vibe Rating</label>
+              <StarRating value={peopleRating} onChange={setPeopleRating} maxStars={5} />
+            </div>
+
+            {/* Owner Rating (out of 3) */}
+            <div className="mb-4">
+              <label className="text-xs text-slate-400 font-medium mb-1.5 block">Owner Rating (out of 3)</label>
+              <StarRating value={ownerRating} onChange={setOwnerRating} maxStars={3} />
+            </div>
+
+            {/* Google Maps Review */}
+            <div>
+              <label className="text-xs text-slate-400 font-medium mb-1.5 block">Google Maps Review</label>
+              <StarRating value={googleMapsRating} onChange={setGoogleMapsRating} maxStars={5} />
+            </div>
+          </div>
+
+          {/* 15. Location */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="input-label mb-0">Location *</label>
@@ -736,6 +770,125 @@ export default function AddHostelPage() {
             />
           </div>
 
+          {/* 16. Photos (last) */}
+          <div>
+            <label className="input-label">Photos</label>
+            {photos.length > 0 && (
+              <div className="grid grid-cols-4 gap-2 mb-3">
+                {photos.map((photo, index) => (
+                  <div
+                    key={index}
+                    draggable
+                    onDragStart={() => handleDragStart(index)}
+                    onDragOver={(e) => handleDragOver(e, index)}
+                    onDrop={() => handleDrop(index)}
+                    onDragEnd={handleDragEnd}
+                    className={`relative aspect-square rounded-xl overflow-hidden bg-slate-700 group transition-all duration-200 ${
+                      dragOverIndex === index ? 'ring-2 ring-blue-500 scale-95 opacity-60' : ''
+                    } ${dragIndexRef.current === index ? 'opacity-40' : ''}`}
+                  >
+                    <img src={photo} alt={`Photo ${index + 1}`} className="w-full h-full object-cover" />
+                    {/* Drag handle */}
+                    <div className="absolute top-1 left-1 w-5 h-5 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center cursor-grab active:cursor-grabbing">
+                      <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M3 15h18v-2H3v2zm0-4h18V9H3v2zm0-6v2h18V5H3zm0 12h18v-2H3v2z" />
+                      </svg>
+                    </div>
+                    {/* Photo number badge */}
+                    <div className="absolute bottom-1 left-1 w-5 h-5 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center text-[10px] text-white font-bold">
+                      {index + 1}
+                    </div>
+                    {/* Delete button */}
+                    <button
+                      type="button"
+                      onClick={() => removePhoto(index)}
+                      className="absolute top-1 right-1 w-5 h-5 bg-red-500/80 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500"
+                    >
+                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                    {/* Move left/right buttons - always visible for mobile */}
+                    {photos.length > 1 && (
+                      <div className="absolute bottom-1 right-1 flex gap-0.5">
+                        {index > 0 && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); movePhoto(index, index - 1); }}
+                            className="w-5 h-5 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-black/70"
+                          >
+                            <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                            </svg>
+                          </button>
+                        )}
+                        {index < photos.length - 1 && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); movePhoto(index, index + 1); }}
+                            className="w-5 h-5 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-black/70"
+                          >
+                            <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )
+            }
+            {photos.length > 1 && (
+              <p className="text-xs text-slate-500 mb-2">
+                Drag or use arrows to reorder. First photo is used as the card thumbnail.
+              </p>
+            )}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => cameraInputRef.current?.click()}
+                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-slate-600 hover:border-blue-500/50 text-slate-400 hover:text-blue-400 transition-all duration-200 bg-slate-800/50"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span className="text-sm font-medium">Camera</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => galleryInputRef.current?.click()}
+                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-slate-600 hover:border-blue-500/50 text-slate-400 hover:text-blue-400 transition-all duration-200 bg-slate-800/50"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span className="text-sm font-medium">Gallery</span>
+              </button>
+            </div>
+            <p className="text-xs text-slate-500 mt-1.5">
+              Camera takes one photo at a time (tap multiple times). Gallery lets you select multiple.
+            </p>
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handlePhotoSelect}
+              className="hidden"
+            />
+            <input
+              ref={galleryInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handlePhotoSelect}
+              className="hidden"
+            />
+          </div>
+
           {/* Submit */}
           <button
             type="submit"
@@ -777,5 +930,3 @@ async function reverseGeocode(lat: number, lng: number): Promise<string> {
     return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
   }
 }
-
-

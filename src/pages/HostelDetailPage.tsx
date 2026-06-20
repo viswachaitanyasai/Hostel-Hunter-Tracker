@@ -14,10 +14,10 @@ const markerIcon = icon({
   popupAnchor: [1, -34],
 });
 
-function StarRatingDisplay({ value }: { value: number }) {
+function StarRatingDisplay({ value, maxStars = 5 }: { value: number; maxStars?: number }) {
   return (
     <div className="flex items-center gap-0.5">
-      {[1, 2, 3, 4, 5].map((star) => (
+      {Array.from({ length: maxStars }, (_, i) => i + 1).map((star) => (
         <svg
           key={star}
           className={`w-4 h-4 ${star <= value ? 'text-yellow-400' : 'text-slate-600'}`}
@@ -27,7 +27,7 @@ function StarRatingDisplay({ value }: { value: number }) {
           <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
         </svg>
       ))}
-      {value > 0 && <span className="text-xs text-slate-400 ml-1">{value}/5</span>}
+      {value > 0 && <span className="text-xs text-slate-400 ml-1">{value}/{maxStars}</span>}
     </div>
   );
 }
@@ -257,12 +257,6 @@ export default function HostelDetailPage() {
                 </svg>
                 <span className="truncate">{hostel.location.address}</span>
               </div>
-              {/* Rating */}
-              {hostel.rating > 0 && (
-                <div className="mt-2">
-                  <StarRatingDisplay value={hostel.rating} />
-                </div>
-              )}
             </div>
             <div className="text-right flex-shrink-0">
               <p className="text-2xl font-bold text-blue-400">₹{cheapestRent.toLocaleString()}</p>
@@ -293,6 +287,39 @@ export default function HostelDetailPage() {
             )}
           </div>
         </div>
+
+        {/* Ratings Section */}
+        {(hostel.roomRating > 0 || hostel.peopleRating > 0 || hostel.googleMapsRating > 0 || hostel.ownerRating > 0) && (
+          <div className="card p-5">
+            <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">Ratings</h2>
+            <div className="grid grid-cols-2 gap-3">
+              {hostel.roomRating > 0 && (
+                <div className="py-3 px-3 rounded-xl bg-slate-700/30 border border-slate-700/50">
+                  <p className="text-xs text-slate-400 font-medium mb-1">Room</p>
+                  <StarRatingDisplay value={hostel.roomRating} maxStars={5} />
+                </div>
+              )}
+              {hostel.peopleRating > 0 && (
+                <div className="py-3 px-3 rounded-xl bg-slate-700/30 border border-slate-700/50">
+                  <p className="text-xs text-slate-400 font-medium mb-1">People/Vibe</p>
+                  <StarRatingDisplay value={hostel.peopleRating} maxStars={5} />
+                </div>
+              )}
+              {hostel.googleMapsRating > 0 && (
+                <div className="py-3 px-3 rounded-xl bg-slate-700/30 border border-slate-700/50">
+                  <p className="text-xs text-slate-400 font-medium mb-1">Google Maps</p>
+                  <StarRatingDisplay value={hostel.googleMapsRating} maxStars={5} />
+                </div>
+              )}
+              {hostel.ownerRating > 0 && (
+                <div className="py-3 px-3 rounded-xl bg-slate-700/30 border border-slate-700/50">
+                  <p className="text-xs text-slate-400 font-medium mb-1">Owner</p>
+                  <StarRatingDisplay value={hostel.ownerRating} maxStars={3} />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Rent Breakdown */}
         {hostel.rents.length > 0 && (
@@ -506,7 +533,27 @@ export default function HostelDetailPage() {
             <span className="text-sm text-white/60 font-medium">
               {selectedPhoto + 1} / {hostel.photos.length}
             </span>
-            <div className="w-10" /> {/* spacer */}
+            {/* Download button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const filename = `${hostel.name.replace(/[^a-zA-Z0-9]/g, '_')}_${selectedPhoto + 1}.jpg`;
+                const dataUrl = hostel.photos[selectedPhoto];
+                const link = document.createElement('a');
+                link.href = dataUrl;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+              }}
+              className="p-2 hover:bg-white/10 rounded-xl transition-colors"
+              aria-label="Download photo"
+              title="Download photo"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </button>
           </div>
 
           {/* Image area with swipe */}
