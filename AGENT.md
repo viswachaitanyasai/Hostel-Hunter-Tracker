@@ -29,20 +29,22 @@ hostel_freebuff/
 │   ├── index.css             # Tailwind directives + custom dark theme + Leaflet overrides
 │   ├── App.tsx               # React Router setup (BrowserRouter)
 │   ├── types/
-│   │   └── index.ts          # Hostel, HostelRent, HostelFormData interfaces + AMENITIES_LIST
+│   │   └── index.ts          # Hostel, HostelRent, HostelFormData, TrackPoint, TrackedRoute interfaces + AMENITIES_LIST
 │   ├── storage/
-│   │   ├── index.ts          # Storage abstraction: listHostels, createHostel, updateHostel, removeHostel, fileToBase64
-│   │   └── indexeddb.ts      # IndexedDB CRUD + migrateHostel() for backward compatibility
+│   │   ├── index.ts          # Storage abstraction: listHostels, createHostel, updateHostel, removeHostel, fileToBase64, listRoutes, createRoute, removeRoute, haversineDistance, calculateTotalDistance
+│   │   └── indexeddb.ts      # IndexedDB CRUD for hostels + trackedRoutes (v2 DB), migrateHostel() for backward compatibility
 │   ├── hooks/
-│   │   └── useGeolocation.ts # useGeolocation() → { lat, lng, loading, error, getCurrentPosition, resetLocation }
+│   │   ├── useGeolocation.ts # useGeolocation() → { lat, lng, loading, error, getCurrentPosition, resetLocation }
+│   │   └── useTracking.ts    # useTracking() → { isTracking, points, startTime, error, currentDuration, currentDistance, startTracking, stopTracking, resetTracking }
 │   ├── components/
-│   │   ├── Layout.tsx        # Bottom nav bar (Home / Map icons) with safe-area padding
+│   │   ├── Layout.tsx        # Bottom nav bar (Home / Track / Map icons) with safe-area padding
 │   │   └── HostelCard.tsx    # Card with photo, rent badge, room rating badge, location, sharing options, amenity tags
 │   └── pages/
 │       ├── HomePage.tsx      # Header with search, filter panel, 2-col grid, loading skeletons, empty state, FAB, export menu (Export Selected / Export All / Import JSON)
 │       ├── AddHostelPage.tsx # Full form (add + edit via /edit/:id): Camera + Gallery inputs with drag-to-reorder photos, GPS detect, satellite map picker, amenities (including Sufficient Sockets/Washing Machine/Balcony as toggles), star ratings (room/people/googleMaps/owner), rent-per-share rows, Indian comma formatting on money inputs
 │       ├── HostelDetailPage.tsx # Swipeable photo gallery with full-screen viewer (download button), details, ratings, satellite mini-map, Open in Google Maps, call/edit/delete actions
-│       └── MapPage.tsx       # Full-screen satellite map with all hostel markers, popup cards with photo+details+room rating+Google Maps link
+│       ├── MapPage.tsx       # Full-screen satellite map with all hostel markers, popup cards with photo+details+room rating+Google Maps link
+│       └── TrackPage.tsx     # GPS route tracker with live satellite map, start/stop recording, polyline trail, stats bar (time/distance/points), save/discard, route history panel with view/delete
 ├── public/
 │   ├── favicon.svg           # Hostel-building SVG icon
 │   └── icons/                # PWA app icons (192px, 512px)
@@ -133,6 +135,7 @@ The migration runs on **both** `getAllHostels()` (bulk list) and `getHostel()` (
 | Route | Page | Layout |
 |---|---|---|
 | `/` | HomePage (hostel grid + search + filters) | Layout (bottom nav) |
+| `/track` | TrackPage (GPS route tracker + history) | Layout (bottom nav) |
 | `/add` | AddHostelPage (new hostel form) | None (fullscreen) |
 | `/edit/:id` | AddHostelPage (edit mode, pre-fills data) | None (fullscreen) |
 | `/hostel/:id` | HostelDetailPage | None (fullscreen) |
@@ -145,6 +148,23 @@ The migration runs on **both** `getAllHostels()` (bulk list) and `getHostel()` (
   - **Export Selected** — enters selection mode: checkboxes appear on hostel cards, user selects/unselects, then exports as JSON
   - **Export All** — exports all hostels as JSON file with version info
   - **Import** — hidden file input for `.json` files, validates format via `parseImportFile()`, imports with new IDs (no overwrites), shows status toast
+
+### TrackPage — GPS Route Tracker
+- **Bottom nav**: New "Track" tab (location pin icon) between Home and Map tabs, inside Layout component for nav persistence
+- **Live GPS Recording**:
+  - Uses `navigator.geolocation.watchPosition()` with `enableHighAccuracy: true`
+  - Records points with 5m minimum distance threshold to avoid duplicates
+  - `watchPosition` continues when tab is backgrounded (minimized browser or switched tabs)
+  - Polyline trail shown on ESRI satellite map with road/boundary overlay — dashed blue line while recording, solid green when saved
+  - Current position shown as blue dot marker with glow effect
+  - Start point (green dot) and end point (red dot) markers
+- **Start/Stop Button**: Green play button to begin, red pulsing stop button during recording
+- **REC indicator**: Red pulsing dot overlay on the map when actively recording
+- **Stats Bar**: Live-ticking timer (1s interval), distance (Haversine formula), point count
+- **Save / Discard**: After stopping, Save Route button persists to IndexedDB + Discard button clears. Route name auto-generated ("Track 15 Jun").
+- **Route History**: Clock icon in header opens a bottom panel listing all saved routes with distance/duration/points/date. Click to view on map. Delete button with confirmation modal.
+- **Past Route Viewing**: Clicking a saved route shows its trail on the map with green polyline. "Live" button returns to current view.
+- **Map auto-fits**: The `FitBounds` component automatically zooms/pans to show the full route trail.
 
 ### HomePage — Filters Panel
 - Sticky header with search bar + filter toggle button

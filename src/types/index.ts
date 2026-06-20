@@ -68,6 +68,23 @@ export interface HostelFormData {
   amenities: string[];
 }
 
+export interface TrackPoint {
+  lat: number;
+  lng: number;
+  timestamp: number;  // Unix ms
+}
+
+export interface TrackedRoute {
+  id: string;
+  name: string;
+  startedAt: string;   // ISO string
+  finishedAt: string;   // ISO string
+  points: TrackPoint[];
+  distance: number;     // Total distance in meters
+  duration: number;     // Duration in seconds
+  createdAt: string;    // ISO string
+}
+
 export const AMENITIES_LIST = [
   'Food',
   'Wi-Fi',

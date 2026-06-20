@@ -4,6 +4,7 @@ import HomePage from './pages/HomePage';
 import AddHostelPage from './pages/AddHostelPage';
 import HostelDetailPage from './pages/HostelDetailPage';
 import MapPage from './pages/MapPage';
+import TrackPage from './pages/TrackPage';
 
 export default function App() {
   return (
@@ -11,6 +12,7 @@ export default function App() {
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<HomePage />} />
+          <Route path="/track" element={<TrackPage />} />
         </Route>
         <Route path="/add" element={<AddHostelPage />} />
         <Route path="/edit/:id" element={<AddHostelPage />} />

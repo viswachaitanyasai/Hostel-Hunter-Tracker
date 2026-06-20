@@ -1,8 +1,9 @@
-import type { Hostel } from '../types';
+import type { Hostel, TrackedRoute } from '../types';
 
 const DB_NAME = 'hostel-finder';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = 'hostels';
+const ROUTES_STORE = 'trackedRoutes';
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -13,6 +14,9 @@ function openDB(): Promise<IDBDatabase> {
       const db = request.result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains(ROUTES_STORE)) {
+        db.createObjectStore(ROUTES_STORE, { keyPath: 'id' });
       }
     };
   });
@@ -105,6 +109,58 @@ function migrateHostel(h: Hostel): Hostel {
   }
   delete hostel.hasAC;
   return hostel as Hostel;
+}
+
+export async function getAllRoutes(): Promise<TrackedRoute[]> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(ROUTES_STORE, 'readonly');
+    const store = tx.objectStore(ROUTES_STORE);
+    const request = store.getAll();
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      resolve((request.result as TrackedRoute[]).sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      ));
+    };
+    tx.oncomplete = () => db.close();
+  });
+}
+
+export async function getRoute(id: string): Promise<TrackedRoute | null> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(ROUTES_STORE, 'readonly');
+    const store = tx.objectStore(ROUTES_STORE);
+    const request = store.get(id);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result as TrackedRoute | null);
+    tx.oncomplete = () => db.close();
+  });
+}
+
+export async function saveRoute(route: TrackedRoute): Promise<void> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(ROUTES_STORE, 'readwrite');
+    const store = tx.objectStore(ROUTES_STORE);
+    const request = store.put(route);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve();
+    tx.oncomplete = () => db.close();
+  });
+}
+
+export async function deleteRouteFromDB(id: string): Promise<void> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(ROUTES_STORE, 'readwrite');
+    const store = tx.objectStore(ROUTES_STORE);
+    const request = store.delete(id);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve();
+    tx.oncomplete = () => db.close();
+  });
 }
 
 export async function getHostel(id: string): Promise<Hostel | null> {
