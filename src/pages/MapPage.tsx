@@ -76,10 +76,13 @@ function HostelPopupContent({ hostel, onViewDetails }: { hostel: Hostel; onViewD
   );
 }
 
+type MapStyle = 'satellite' | 'street';
+
 export default function MapPage() {
   const navigate = useNavigate();
   const [hostels, setHostels] = useState<Hostel[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mapStyle, setMapStyle] = useState<MapStyle>('satellite');
 
   useEffect(() => {
     loadHostels();
@@ -130,15 +133,28 @@ export default function MapPage() {
               {!loading && <span className="text-sm font-normal text-slate-400 ml-1">({hostels.length})</span>}
             </h1>
           </div>
-          <button
-            onClick={() => navigate('/add')}
-            className="p-2 bg-blue-500 hover:bg-blue-400 rounded-xl transition-colors"
-            aria-label="Add hostel"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setMapStyle(prev => prev === 'satellite' ? 'street' : 'satellite')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
+                mapStyle === 'satellite'
+                  ? 'bg-blue-500/20 border-blue-500/30 text-blue-400'
+                  : 'bg-green-500/20 border-green-500/30 text-green-400'
+              }`}
+              title="Toggle map style"
+            >
+              {mapStyle === 'satellite' ? 'Satellite' : 'Street'}
+            </button>
+            <button
+              onClick={() => navigate('/add')}
+              className="p-2 bg-blue-500 hover:bg-blue-400 rounded-xl transition-colors"
+              aria-label="Add hostel"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -172,15 +188,19 @@ export default function MapPage() {
             zoom={zoom}
             className="h-full w-full"
             zoomControl={true}
+            maxZoom={18}
           >
-            <TileLayer
-              attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
-              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-            />
-            <TileLayer
-              attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
-              url="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
-            />
+            {mapStyle === 'satellite' ? (
+              <TileLayer
+                attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
+                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+              />
+            ) : (
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+            )}
             {hostels.map((hostel) => (
               <Marker
                 key={hostel.id}

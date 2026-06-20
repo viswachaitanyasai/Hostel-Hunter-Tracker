@@ -16,9 +16,16 @@ const markerIcon = icon({
   popupAnchor: [1, -34],
 });
 
-function MapCenterUpdater({ lat, lng }: { lat: number; lng: number }) {
+function MapCenterUpdater({ lat, lng, gpsZoomed }: { lat: number; lng: number; gpsZoomed: boolean }) {
   const map = useMap();
-  map.setView([lat, lng], map.getZoom());
+  const appliedZoom = useRef(false);
+  if (gpsZoomed && !appliedZoom.current) {
+    map.setView([lat, lng], 16);
+    appliedZoom.current = true;
+  } else if (!gpsZoomed) {
+    appliedZoom.current = false;
+    map.setView([lat, lng], map.getZoom());
+  }
   return null;
 }
 
@@ -116,6 +123,7 @@ export default function AddHostelPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [loadingEdit, setLoadingEdit] = useState(false);
+  const [gpsZoomed, setGpsZoomed] = useState(false);
 
   // Load existing hostel data for editing
   useEffect(() => {
@@ -162,12 +170,13 @@ export default function AddHostelPage() {
     getCurrentPosition();
   };
 
-  // When GPS updates, set hostel location
+  // When GPS updates, set hostel location and zoom in
   useEffect(() => {
     if (lat && lng && hostelLat === null && hostelLng === null && !isEditing) {
       setHostelLat(lat);
       setHostelLng(lng);
       reverseGeocode(lat, lng).then(setAddress);
+      setGpsZoomed(true);
     }
   }, [lat, lng, hostelLat, hostelLng, isEditing]);
 
@@ -175,6 +184,7 @@ export default function AddHostelPage() {
     setHostelLat(newLat);
     setHostelLng(newLng);
     reverseGeocode(newLat, newLng).then(setAddress);
+    setGpsZoomed(false);
   };
 
   const toggleAmenity = (amenity: string) => {
@@ -741,19 +751,16 @@ export default function AddHostelPage() {
                 zoom={5}
                 className="h-full w-full"
                 zoomControl={true}
+                maxZoom={18}
               >
                 <TileLayer
                   attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
                   url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
                 />
-                <TileLayer
-                  attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
-                  url="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
-                />
                 {hostelLat && hostelLng && (
                   <>
                     <Marker position={[hostelLat, hostelLng]} icon={markerIcon} />
-                    <MapCenterUpdater lat={hostelLat} lng={hostelLng} />
+                    <MapCenterUpdater lat={hostelLat} lng={hostelLng} gpsZoomed={gpsZoomed} />
                   </>
                 )}
                 <LocationPicker onLocationChange={handleMapClick} />

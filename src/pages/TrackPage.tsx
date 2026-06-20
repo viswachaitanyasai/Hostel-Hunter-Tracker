@@ -36,15 +36,17 @@ const endIcon = divIcon({
   iconAnchor: [6, 6],
 });
 
-function FitBounds({ points }: { points: [number, number][] }) {
+const ROUTE_COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
+
+function FitBounds({ allPoints }: { allPoints: [number, number][] }) {
   const map = useMap();
-  const countRef = useRef(0);
+  const lenRef = useRef(0);
   useEffect(() => {
-    if (points.length > 0 && points.length !== countRef.current) {
-      countRef.current = points.length;
-      map.fitBounds(points, { padding: [40, 40], maxZoom: 16 });
+    if (allPoints.length > 0 && allPoints.length !== lenRef.current) {
+      lenRef.current = allPoints.length;
+      map.fitBounds(allPoints, { padding: [40, 40], maxZoom: 18 });
     }
-  }, [map, points.length]);
+  }, [map, allPoints.length]);
   return null;
 }
 
@@ -124,6 +126,9 @@ export default function TrackPage() {
   const [showHistory, setShowHistory] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [liveDuration, setLiveDuration] = useState(0);
+  const [selectedRouteIds, setSelectedRouteIds] = useState<Set<string>>(new Set());
+  const [showingMultiRoutes, setShowingMultiRoutes] = useState(false);
+  const [mapStyle, setMapStyle] = useState<'satellite' | 'street'>('satellite');
 
   // Tick the duration counter every second while actively tracking
   useEffect(() => {
@@ -138,8 +143,10 @@ export default function TrackPage() {
   }, [isTracking, startTime, viewingRoute]);
 
   useEffect(() => {
-    loadRoutes();
-  }, []);
+    if (!showingMultiRoutes) {
+      loadRoutes();
+    }
+  }, [showingMultiRoutes]);
 
   async function loadRoutes() {
     try {
@@ -150,10 +157,15 @@ export default function TrackPage() {
     }
   }
 
-  // Build polyline positions
-  const polylinePositions: [number, number][] = viewingRoute
-    ? viewingRoute.points.map(p => [p.lat, p.lng] as [number, number])
-    : points.map(p => [p.lat, p.lng] as [number, number]);
+  // Selected routes for multi-route view
+  const selectedRoutes = savedRoutes.filter(r => selectedRouteIds.has(r.id));
+
+  // Build all polyline points for FitBounds
+  const allPolylinePoints: [number, number][] = showingMultiRoutes
+    ? selectedRoutes.flatMap(r => r.points.map(p => [p.lat, p.lng] as [number, number]))
+    : viewingRoute
+      ? viewingRoute.points.map(p => [p.lat, p.lng] as [number, number])
+      : points.map(p => [p.lat, p.lng] as [number, number]);
 
   const lastPoint = viewingRoute
     ? [viewingRoute.points[viewingRoute.points.length - 1]?.lat, viewingRoute.points[viewingRoute.points.length - 1]?.lng] as [number, number]
@@ -161,7 +173,12 @@ export default function TrackPage() {
       ? [points[points.length - 1].lat, points[points.length - 1].lng] as [number, number]
       : null;
 
-  const firstPoint = polylinePositions[0] || null;
+  const firstPoint = !showingMultiRoutes && (viewingRoute?.points[0] || points[0])
+    ? [
+        viewingRoute ? viewingRoute.points[0].lat : points[0].lat,
+        viewingRoute ? viewingRoute.points[0].lng : points[0].lng,
+      ] as [number, number]
+    : null;
 
   const handleSaveRoute = async () => {
     if (points.length < 2) return;
@@ -207,11 +224,28 @@ export default function TrackPage() {
 
   const handleBackToLive = () => {
     setViewingRoute(null);
+    setShowingMultiRoutes(false);
+    setSelectedRouteIds(new Set());
   };
 
-  const defaultCenter: [number, number] = lastPoint || [20.5937, 78.9629];
-  const defaultZoom = lastPoint ? 15 : 5;
-  const isLive = !viewingRoute && (isTracking || points.length === 0);
+  const toggleRouteSelection = (id: string) => {
+    setSelectedRouteIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const handleShowSelectedOnMap = () => {
+    if (selectedRouteIds.size === 0) return;
+    setShowingMultiRoutes(true);
+    setShowHistory(false);
+  };
+
+  const defaultCenter: [number, number] = allPolylinePoints[0] || [20.5937, 78.9629];
+  const defaultZoom = allPolylinePoints.length > 0 ? 15 : 5;
+  const isLive = !viewingRoute && !showingMultiRoutes && (isTracking || points.length === 0);
+  const isShowingRoutes = showingMultiRoutes || !!viewingRoute;
 
   return (
     <div className="h-dvh w-full flex flex-col bg-slate-900">
@@ -232,19 +266,34 @@ export default function TrackPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* View history button */}
+            {/* Map style toggle */}
             <button
-              onClick={() => { setShowHistory(!showHistory); setViewingRoute(null); }}
-              className={`p-2 rounded-xl transition-colors ${showHistory ? 'bg-blue-500/20 text-blue-400' : 'hover:bg-slate-800 text-slate-400'}`}
-              title="Route history"
+              onClick={() => setMapStyle(prev => prev === 'satellite' ? 'street' : 'satellite')}
+              className={`px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-all ${
+                mapStyle === 'satellite'
+                  ? 'bg-blue-500/20 border-blue-500/30 text-blue-400'
+                  : 'bg-green-500/20 border-green-500/30 text-green-400'
+              }`}
+              title="Toggle map style"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+              {mapStyle === 'satellite' ? 'Satellite' : 'Street'}
             </button>
 
+            {/* View history button */}
+            {!showingMultiRoutes && (
+              <button
+                onClick={() => { setShowHistory(!showHistory); setViewingRoute(null); }}
+                className={`p-2 rounded-xl transition-colors ${showHistory ? 'bg-blue-500/20 text-blue-400' : 'hover:bg-slate-800 text-slate-400'}`}
+                title="Route history"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </button>
+            )}
+
             {/* Start/Stop button */}
-            {!viewingRoute && (
+            {!isShowingRoutes && (
               <button
                 onClick={isTracking ? stopTracking : startTracking}
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 ${
@@ -270,7 +319,7 @@ export default function TrackPage() {
                 )}
               </button>
             )}
-            {viewingRoute && (
+            {(viewingRoute || showingMultiRoutes) && (
               <button
                 onClick={handleBackToLive}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold bg-slate-700 hover:bg-slate-600 text-white transition-colors"
@@ -292,20 +341,38 @@ export default function TrackPage() {
           zoom={defaultZoom}
           className="h-full w-full"
           zoomControl={true}
+          maxZoom={18}
           key={isLive ? 'live' : viewingRoute?.id || 'history'}
         >
-          <TileLayer
-            attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
-            url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-          />
-          <TileLayer
-            attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
-            url="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
-          />
+          {mapStyle === 'satellite' ? (
+            <TileLayer
+              attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
+              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+            />
+          ) : (
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+          )}
 
-          {polylinePositions.length > 1 && (
+          {/* Multi-route polylines */}
+          {showingMultiRoutes && selectedRoutes.map((route, idx) => {
+            const positions = route.points.map(p => [p.lat, p.lng] as [number, number]);
+            const color = ROUTE_COLORS[idx % ROUTE_COLORS.length];
+            return positions.length > 1 ? (
+              <Polyline
+                key={route.id}
+                positions={positions}
+                pathOptions={{ color, weight: 4, opacity: 0.8 }}
+              />
+            ) : null;
+          })}
+
+          {/* Single route polyline */}
+          {!showingMultiRoutes && allPolylinePoints.length > 1 && (
             <Polyline
-              positions={polylinePositions}
+              positions={allPolylinePoints}
               pathOptions={{
                 color: isTracking ? '#3b82f6' : '#22c55e',
                 weight: 4,
@@ -315,12 +382,12 @@ export default function TrackPage() {
             />
           )}
 
-          {firstPoint && <Marker position={firstPoint} icon={startIcon} />}
-          {lastPoint && polylinePositions.length > 1 && <Marker position={lastPoint} icon={endIcon} />}
+          {!showingMultiRoutes && firstPoint && <Marker position={firstPoint} icon={startIcon} />}
+          {!showingMultiRoutes && lastPoint && allPolylinePoints.length > 1 && <Marker position={lastPoint} icon={endIcon} />}
 
           {isTracking && lastPoint && <Marker position={lastPoint} icon={currentLocationIcon} />}
 
-          {polylinePositions.length > 0 && <FitBounds points={polylinePositions} />}
+          {allPolylinePoints.length > 0 && <FitBounds allPoints={allPolylinePoints} />}
         </MapContainer>
 
         {/* Recording indicator */}
@@ -328,6 +395,22 @@ export default function TrackPage() {
           <div className="absolute top-3 left-3 z-[1000] flex items-center gap-2 bg-black/70 backdrop-blur-sm rounded-full px-3 py-1.5">
             <span className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse" />
             <span className="text-xs text-white font-medium">REC</span>
+          </div>
+        )}
+
+        {/* Multi-route legend */}
+        {showingMultiRoutes && selectedRoutes.length > 0 && (
+          <div className="absolute top-3 left-3 right-3 z-[1000] flex flex-wrap gap-1.5">
+            {selectedRoutes.map((route, idx) => (
+              <div
+                key={route.id}
+                className="flex items-center gap-1.5 px-2.5 py-1 bg-black/70 backdrop-blur-sm rounded-full text-xs"
+                style={{ color: ROUTE_COLORS[idx % ROUTE_COLORS.length] }}
+              >
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: ROUTE_COLORS[idx % ROUTE_COLORS.length] }} />
+                <span className="text-white font-medium truncate max-w-[100px]">{route.name}</span>
+              </div>
+            ))}
           </div>
         )}
 
@@ -342,7 +425,27 @@ export default function TrackPage() {
       {/* Stats bar */}
       <div className="flex-shrink-0 bg-slate-800/95 backdrop-blur-lg border-t border-slate-700/50 px-4 py-3">
         <div className="max-w-lg mx-auto">
-          {viewingRoute ? (
+          {showingMultiRoutes ? (
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-slate-400">{selectedRoutes.length} route{selectedRoutes.length !== 1 ? 's' : ''} selected</p>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="text-center">
+                  <p className="text-lg font-bold text-white">
+                    {formatDistance(selectedRoutes.reduce((sum, r) => sum + r.distance, 0))}
+                  </p>
+                  <p className="text-[10px] text-slate-400 uppercase tracking-wider">Total Dist</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-lg font-bold text-blue-400">
+                    {selectedRoutes.reduce((sum, r) => sum + r.points.length, 0)}
+                  </p>
+                  <p className="text-[10px] text-slate-400 uppercase tracking-wider">Points</p>
+                </div>
+              </div>
+            </div>
+          ) : viewingRoute ? (
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-slate-400">{viewingRoute.name}</p>
@@ -388,7 +491,7 @@ export default function TrackPage() {
           )}
 
           {/* Save / Discard after stop */}
-          {!isTracking && points.length >= 2 && !viewingRoute && (
+          {!isTracking && points.length >= 2 && !isShowingRoutes && (
             <div className="flex gap-2 mt-3">
               <button
                 onClick={handleSaveRoute}
@@ -429,7 +532,20 @@ export default function TrackPage() {
           <div className="max-w-lg mx-auto px-4 py-3">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">Route History</h2>
-              <span className="text-xs text-slate-500">{savedRoutes.length} routes</span>
+              <div className="flex items-center gap-2">
+                {selectedRouteIds.size > 0 && (
+                  <button
+                    onClick={handleShowSelectedOnMap}
+                    className="flex items-center gap-1 px-3 py-1 bg-blue-500 hover:bg-blue-400 text-white rounded-xl text-xs font-bold transition-colors"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                    </svg>
+                    Show {selectedRouteIds.size} on Map
+                  </button>
+                )}
+                <span className="text-xs text-slate-500">{savedRoutes.length} routes</span>
+              </div>
             </div>
 
             {savedRoutes.length === 0 ? (
@@ -444,42 +560,65 @@ export default function TrackPage() {
               </div>
             ) : (
               <div className="space-y-2">
-                {savedRoutes.map((route) => (
-                  <div
-                    key={route.id}
-                    className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer ${
-                      viewingRoute?.id === route.id
-                        ? 'bg-blue-500/10 border-blue-500/30'
-                        : 'bg-slate-700/50 border-slate-600 hover:border-slate-500'
-                    }`}
-                    onClick={() => handleViewRoute(route)}
-                  >
-                    <div className="w-12 h-12 rounded-lg bg-slate-600 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                      <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                      </svg>
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white truncate">{route.name}</p>
-                      <p className="text-xs text-slate-400">{formatTime(route.createdAt)}</p>
-                      <div className="flex gap-3 mt-0.5">
-                        <span className="text-xs text-slate-500">{formatDistance(route.distance)}</span>
-                        <span className="text-xs text-slate-500">{formatDuration(route.duration)}</span>
-                        <span className="text-xs text-slate-500">{route.points.length} pts</span>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setConfirmDelete(route.id); }}
-                      className="p-2 text-slate-500 hover:text-red-400 transition-colors"
+                {savedRoutes.map((route, idx) => {
+                  const isSelected = selectedRouteIds.has(route.id);
+                  return (
+                    <div
+                      key={route.id}
+                      className={`flex items-center gap-2 p-3 rounded-xl border transition-all ${
+                        viewingRoute?.id === route.id
+                          ? 'bg-blue-500/10 border-blue-500/30'
+                          : 'bg-slate-700/50 border-slate-600 hover:border-slate-500'
+                      }`}
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
-                ))}
+                      {/* Checkbox for multi-select */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); toggleRouteSelection(route.id); }}
+                        className={`flex-shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
+                          isSelected
+                            ? 'bg-blue-500 border-blue-500'
+                            : 'border-slate-500 hover:border-blue-400'
+                        }`}
+                      >
+                        {isSelected && (
+                          <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </button>
+
+                      {/* Route info - click to view single route */}
+                      <div className="flex-1 min-w-0 flex items-center gap-3 cursor-pointer" onClick={() => handleViewRoute(route)}>
+                        <div className="w-10 h-10 rounded-lg bg-slate-600 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                          {isSelected ? (
+                            <span className="w-3 h-3 rounded-full" style={{ backgroundColor: ROUTE_COLORS[selectedRoutes.findIndex(r => r.id === route.id) % ROUTE_COLORS.length] }} />
+                          ) : (
+                            <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                            </svg>
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-white truncate">{route.name}</p>
+                          <p className="text-xs text-slate-400">{formatTime(route.createdAt)}</p>
+                          <div className="flex gap-3 mt-0.5">
+                            <span className="text-xs text-slate-500">{formatDistance(route.distance)}</span>
+                            <span className="text-xs text-slate-500">{formatDuration(route.duration)}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setConfirmDelete(route.id); }}
+                        className="p-2 text-slate-500 hover:text-red-400 transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
