@@ -1,126 +1,38 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
-import type { TrackPoint } from '../types';
-import { haversineDistance } from '../storage';
-
-interface TrackingState {
-  isTracking: boolean;
-  points: TrackPoint[];
-  startTime: number | null;
-  error: string | null;
-}
+import { useState, useEffect } from 'react';
+import { trackingService } from './trackingService';
 
 export function useTracking() {
-  const [state, setState] = useState<TrackingState>({
-    isTracking: false,
-    points: [],
-    startTime: null,
-    error: null,
-  });
-  const watchIdRef = useRef<number | null>(null);
-  const lastPointRef = useRef<TrackPoint | null>(null);
+  const [, forceUpdate] = useState(0);
 
-  const startTracking = useCallback(() => {
-    if (!navigator.geolocation) {
-      setState(prev => ({ ...prev, error: 'Geolocation not supported by your browser' }));
-      return;
-    }
-
-    const now = Date.now();
-    lastPointRef.current = null;
-    setState({
-      isTracking: true,
-      points: [],
-      startTime: now,
-      error: null,
-    });
-
-    const watchId = navigator.geolocation.watchPosition(
-      (position) => {
-        const point: TrackPoint = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-          timestamp: Date.now(),
-        };
-
-        // Skip if moved less than ~5 meters from last recorded point
-        if (lastPointRef.current) {
-          const dist = haversineDistance(
-            lastPointRef.current.lat, lastPointRef.current.lng,
-            point.lat, point.lng,
-          );
-          if (dist < 5) return;
-        }
-
-        lastPointRef.current = point;
-        setState(prev => {
-          if (!prev.isTracking) return prev;
-          return { ...prev, points: [...prev.points, point] };
-        });
-      },
-      (error) => {
-        let msg = 'Failed to get GPS location.';
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            msg = 'Location permission denied. Please enable GPS.';
-            break;
-          case error.POSITION_UNAVAILABLE:
-            msg = 'GPS signal unavailable. Try moving outdoors.';
-            break;
-          case error.TIMEOUT:
-            msg = 'GPS request timed out.';
-            break;
-        }
-        setState(prev => ({ ...prev, error: msg }));
-      },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 1000 },
-    );
-
-    watchIdRef.current = watchId;
-  }, []);
-
-  const stopTracking = useCallback(() => {
-    if (watchIdRef.current !== null) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-      watchIdRef.current = null;
-    }
-    setState(prev => ({ ...prev, isTracking: false }));
-  }, []);
-
-  const resetTracking = useCallback(() => {
-    if (watchIdRef.current !== null) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-      watchIdRef.current = null;
-    }
-    lastPointRef.current = null;
-    setState({ isTracking: false, points: [], startTime: null, error: null });
-  }, []);
-
-  // Cleanup on unmount
   useEffect(() => {
-    return () => {
-      if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-      }
-    };
+    return trackingService.subscribe(() => forceUpdate(n => n + 1));
   }, []);
 
-  const currentDuration = state.startTime
-    ? Math.floor((Date.now() - state.startTime) / 1000)
+  const points = trackingService.points;
+  const startTime = trackingService.startTime;
+  const isTracking = trackingService.isTracking;
+  const error = trackingService.error;
+
+  const currentDuration = startTime
+    ? Math.floor((Date.now() - startTime) / 1000)
     : 0;
 
-  const currentDistance = calculateDistance(state.points);
+  const currentDistance = calculateDistance(points);
 
   return {
-    ...state,
+    isTracking,
+    points,
+    startTime,
+    error,
     currentDuration,
     currentDistance,
-    startTracking,
-    stopTracking,
-    resetTracking,
+    startTracking: () => trackingService.start(),
+    stopTracking: () => trackingService.stop(),
+    resetTracking: () => trackingService.reset(),
   };
 }
 
-function calculateDistance(points: TrackPoint[]): number {
+function calculateDistance(points: { lat: number; lng: number }[]): number {
   let total = 0;
   for (let i = 1; i < points.length; i++) {
     total += haversineDistance(
@@ -129,4 +41,15 @@ function calculateDistance(points: TrackPoint[]): number {
     );
   }
   return total;
+}
+
+function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000;
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }

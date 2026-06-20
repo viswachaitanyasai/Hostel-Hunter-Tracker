@@ -12,12 +12,12 @@ export default function App() {
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<HomePage />} />
-          <Route path="/track" element={<TrackPage />} />
         </Route>
         <Route path="/add" element={<AddHostelPage />} />
         <Route path="/edit/:id" element={<AddHostelPage />} />
         <Route path="/hostel/:id" element={<HostelDetailPage />} />
         <Route path="/map" element={<MapPage />} />
+        <Route path="/track" element={<TrackPage />} />
       </Routes>
     </BrowserRouter>
   );

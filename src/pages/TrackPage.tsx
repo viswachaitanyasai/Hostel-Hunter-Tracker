@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { MapContainer, TileLayer, Polyline, Marker, useMap } from 'react-leaflet';
 import { icon, divIcon } from 'leaflet';
 import { useTracking } from '../hooks/useTracking';
@@ -71,14 +71,47 @@ function formatTime(iso: string): string {
   return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+// ── Bottom Nav Icons ──────────────────────────────────────────
+
+function HomeIcon({ active: _active }: { active: boolean }) {
+  return (
+    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+    </svg>
+  );
+}
+
+function TrackNavIcon({ active }: { active: boolean }) {
+  return (
+    <svg className={`w-6 h-6 ${active ? 'text-blue-400' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  );
+}
+
+function MapNavIcon({ active }: { active: boolean }) {
+  return (
+    <svg className={`w-6 h-6 ${active ? 'text-blue-400' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+    </svg>
+  );
+}
+
+const bottomNav = [
+  { to: '/', label: 'Home', icon: HomeIcon },
+  { to: '/track', label: 'Track', icon: TrackNavIcon },
+  { to: '/map', label: 'Map', icon: MapNavIcon },
+];
+
 export default function TrackPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const {
     isTracking,
     points,
     startTime,
     error,
-    currentDuration,
     currentDistance,
     startTracking,
     stopTracking,
@@ -92,7 +125,7 @@ export default function TrackPage() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [liveDuration, setLiveDuration] = useState(0);
 
-  // Tick the duration counter every second while tracking or showing stopped result
+  // Tick the duration counter every second while actively tracking
   useEffect(() => {
     if (!viewingRoute && isTracking) {
       const interval = setInterval(() => {
@@ -117,7 +150,7 @@ export default function TrackPage() {
     }
   }
 
-  // Build polyline positions from current tracking points or selected past route
+  // Build polyline positions
   const polylinePositions: [number, number][] = viewingRoute
     ? viewingRoute.points.map(p => [p.lat, p.lng] as [number, number])
     : points.map(p => [p.lat, p.lng] as [number, number]);
@@ -140,7 +173,7 @@ export default function TrackPage() {
         name: routeName,
         points,
         distance: currentDistance,
-        duration: currentDuration,
+        duration: liveDuration,
         startedAt: startTime ? new Date(startTime).toISOString() : now.toISOString(),
         finishedAt: now.toISOString(),
       });
@@ -176,16 +209,14 @@ export default function TrackPage() {
     setViewingRoute(null);
   };
 
-  // Determine map center
   const defaultCenter: [number, number] = lastPoint || [20.5937, 78.9629];
   const defaultZoom = lastPoint ? 15 : 5;
-
   const isLive = !viewingRoute && (isTracking || points.length === 0);
 
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col">
+    <div className="h-dvh w-full flex flex-col bg-slate-900">
       {/* Header */}
-      <header className="sticky top-0 z-[1000] bg-slate-900/95 backdrop-blur-lg border-b border-slate-800">
+      <header className="flex-shrink-0 z-[1000] bg-slate-900/95 backdrop-blur-lg border-b border-slate-800">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
@@ -255,7 +286,7 @@ export default function TrackPage() {
       </header>
 
       {/* Map */}
-      <div className="flex-1 relative min-h-[300px]">
+      <div className="flex-1 relative">
         <MapContainer
           center={defaultCenter}
           zoom={defaultZoom}
@@ -284,26 +315,15 @@ export default function TrackPage() {
             />
           )}
 
-          {firstPoint && (
-            <Marker position={firstPoint} icon={startIcon} />
-          )}
+          {firstPoint && <Marker position={firstPoint} icon={startIcon} />}
+          {lastPoint && polylinePositions.length > 1 && <Marker position={lastPoint} icon={endIcon} />}
 
-          {lastPoint && polylinePositions.length > 1 && (
-            <Marker position={lastPoint} icon={endIcon} />
-          )}
+          {isTracking && lastPoint && <Marker position={lastPoint} icon={currentLocationIcon} />}
 
-          {/* Current location marker (blue dot) */}
-          {isTracking && lastPoint && (
-            <Marker position={lastPoint} icon={currentLocationIcon} />
-          )}
-
-          {/* Fit bounds to show the full route */}
-          {polylinePositions.length > 0 && (
-            <FitBounds points={polylinePositions} />
-          )}
+          {polylinePositions.length > 0 && <FitBounds points={polylinePositions} />}
         </MapContainer>
 
-        {/* Recording indicator overlay */}
+        {/* Recording indicator */}
         {isTracking && (
           <div className="absolute top-3 left-3 z-[1000] flex items-center gap-2 bg-black/70 backdrop-blur-sm rounded-full px-3 py-1.5">
             <span className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse" />
@@ -320,7 +340,7 @@ export default function TrackPage() {
       </div>
 
       {/* Stats bar */}
-      <div className="bg-slate-800/95 backdrop-blur-lg border-t border-slate-700/50 px-4 py-3">
+      <div className="flex-shrink-0 bg-slate-800/95 backdrop-blur-lg border-t border-slate-700/50 px-4 py-3">
         <div className="max-w-lg mx-auto">
           {viewingRoute ? (
             <div className="flex items-center justify-between">
@@ -367,7 +387,7 @@ export default function TrackPage() {
             </div>
           )}
 
-          {/* Action buttons after stop */}
+          {/* Save / Discard after stop */}
           {!isTracking && points.length >= 2 && !viewingRoute && (
             <div className="flex gap-2 mt-3">
               <button
@@ -405,7 +425,7 @@ export default function TrackPage() {
 
       {/* History panel */}
       {showHistory && (
-        <div className="bg-slate-800/95 backdrop-blur-lg border-t border-slate-700/50 max-h-[40vh] overflow-y-auto">
+        <div className="flex-shrink-0 bg-slate-800/95 backdrop-blur-lg border-t border-slate-700/50 max-h-[40vh] overflow-y-auto">
           <div className="max-w-lg mx-auto px-4 py-3">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">Route History</h2>
@@ -434,7 +454,6 @@ export default function TrackPage() {
                     }`}
                     onClick={() => handleViewRoute(route)}
                   >
-                    {/* Thumbnail map */}
                     <div className="w-12 h-12 rounded-lg bg-slate-600 flex items-center justify-center flex-shrink-0 overflow-hidden">
                       <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
@@ -466,6 +485,27 @@ export default function TrackPage() {
           </div>
         </div>
       )}
+
+      {/* Bottom navigation */}
+      <nav className="flex-shrink-0 bg-slate-800/95 backdrop-blur-lg border-t border-slate-700/50 safe-area-bottom">
+        <div className="max-w-lg mx-auto flex items-center justify-around h-16">
+          {bottomNav.map(({ to, label, icon: Icon }) => {
+            const isActive = location.pathname === to;
+            return (
+              <button
+                key={to}
+                onClick={() => navigate(to)}
+                className={`flex flex-col items-center gap-0.5 px-6 py-2 rounded-xl transition-all duration-200 ${
+                  isActive ? 'text-blue-400 scale-105' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Icon active={isActive} />
+                <span className="text-xs font-medium">{label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
 
       {/* Delete confirmation modal */}
       {confirmDelete && (
