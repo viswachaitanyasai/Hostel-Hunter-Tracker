@@ -5,6 +5,7 @@ export type HostelType = 'boys' | 'coliving';
 export interface HostelRent {
   shares: number;
   rent: number;
+  ac: boolean; // Whether this rent option is for an AC room (AC and Non-AC can exist for the same share count)
 }
 
 export interface Hostel {
@@ -35,7 +36,7 @@ export interface Hostel {
   photos: string[]; // base64 encoded image strings
   contactNumber: string;
   description: string;
-  amenities: string[];
+  amenities: string[]; // "Other" features (New Building, Hot Water, Water Purifier, etc.)
   createdAt: string;
   updatedAt: string;
 }
@@ -68,27 +69,11 @@ export interface HostelFormData {
   amenities: string[];
 }
 
-export interface TrackPoint {
-  lat: number;
-  lng: number;
-  timestamp: number;  // Unix ms
-}
-
-export interface TrackedRoute {
-  id: string;
-  name: string;
-  startedAt: string;   // ISO string
-  finishedAt: string;   // ISO string
-  points: TrackPoint[];
-  distance: number;     // Total distance in meters
-  duration: number;     // Duration in seconds
-  createdAt: string;    // ISO string
-}
+export const SHARE_OPTIONS = [1, 2, 3, 4, 5] as const;
 
 export const AMENITIES_LIST = [
   'Food',
   'Wi-Fi',
-  'AC',
   'Laundry',
   'Power Backup',
   'Parking',
@@ -99,4 +84,7 @@ export const AMENITIES_LIST = [
   'Sufficient Sockets',
   'Washing Machine',
   'Balcony',
+  'New Building',
+  'Hot Water',
+  'Water Purifier',
 ] as const;

@@ -310,10 +310,10 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Amenities */}
+            {/* Other */}
             <div>
               <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2 block">
-                Amenities
+                Other
               </label>
               <div className="flex flex-wrap gap-2">
                 {AMENITIES_LIST.map((amenity) => (

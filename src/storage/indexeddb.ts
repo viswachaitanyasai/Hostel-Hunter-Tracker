@@ -1,9 +1,9 @@
-import type { Hostel, TrackedRoute } from '../types';
+import type { Hostel } from '../types';
 
 const DB_NAME = 'hostel-finder';
-const DB_VERSION = 2;
+// v3: dropped the 'trackedRoutes' store (tracking feature removed)
+const DB_VERSION = 3;
 const STORE_NAME = 'hostels';
-const ROUTES_STORE = 'trackedRoutes';
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -15,8 +15,9 @@ function openDB(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME, { keyPath: 'id' });
       }
-      if (!db.objectStoreNames.contains(ROUTES_STORE)) {
-        db.createObjectStore(ROUTES_STORE, { keyPath: 'id' });
+      // v3: remove the trackedRoutes store (tracking feature was removed)
+      if (db.objectStoreNames.contains('trackedRoutes')) {
+        db.deleteObjectStore('trackedRoutes');
       }
     };
   });
@@ -41,12 +42,17 @@ export async function getAllHostels(): Promise<Hostel[]> {
 function migrateHostel(h: Hostel): Hostel {
   const hostel = { ...h } as any;
   if (hostel.rent !== undefined && (!hostel.rents || hostel.rents.length === 0)) {
-    hostel.rents = [{ shares: 1, rent: hostel.rent }];
+    hostel.rents = [{ shares: 1, rent: hostel.rent, ac: false }];
     delete hostel.rent;
   }
   if (!hostel.rents || hostel.rents.length === 0) {
-    hostel.rents = [{ shares: 1, rent: 0 }];
+    hostel.rents = [{ shares: 1, rent: 0, ac: false }];
   }
+  // Migrate: add `ac` to every rent row (per-rent AC introduced when 'AC' was removed from amenities)
+  hostel.rents = hostel.rents.map((r: any) => {
+    const { foodIncluded, foodCharges, electricityType, electricityAmount, ...rest } = r;
+    return { ac: false, ...rest };
+  });
   if (hostel.securityFee === undefined) hostel.securityFee = 0;
   if (hostel.otherFines === undefined) hostel.otherFines = '';
   if (hostel.type === undefined) hostel.type = 'coliving';
@@ -78,10 +84,16 @@ function migrateHostel(h: Hostel): Hostel {
   delete hostel.washingMachineCount;
   delete hostel.hasBalcony;
 
-  // Migration: handle legacy hasAC field (now just part of amenities)
-  if (hostel.hasAC === true && !hostel.amenities.includes('AC')) {
-    hostel.amenities.push('AC');
+  // Migrate: legacy hasAC field → mark the first rent row as AC, don't add to amenities anymore
+  if (hostel.hasAC === true) {
+    if (hostel.rents.length > 0) {
+      hostel.rents[0].ac = true;
+    } else {
+      hostel.rents = [{ shares: 3, rent: 0, ac: true }];
+    }
   }
+  // Migrate: remove 'AC' from amenities (AC is now per-rent-row, not an amenity)
+  hostel.amenities = hostel.amenities.filter((a: string) => a !== 'AC');
   // Migrate: remove 'Electricity Included' from amenities (now handled as dedicated fields)
   hostel.amenities = hostel.amenities.filter((a: string) => a !== 'Electricity Included');
   // Migrate food/electricity from per-rent level (old schema) to hostel level
@@ -99,68 +111,9 @@ function migrateHostel(h: Hostel): Hostel {
       hostel.electricityType = 'included';
       hostel.electricityAmount = 0;
     }
-    // Strip legacy per-rent food/electricity fields
-    if (hostel.rents) {
-      hostel.rents = hostel.rents.map((r: any) => {
-        const { foodIncluded, foodCharges, electricityType, electricityAmount, ...rest } = r;
-        return rest;
-      });
-    }
   }
   delete hostel.hasAC;
   return hostel as Hostel;
-}
-
-export async function getAllRoutes(): Promise<TrackedRoute[]> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(ROUTES_STORE, 'readonly');
-    const store = tx.objectStore(ROUTES_STORE);
-    const request = store.getAll();
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => {
-      resolve((request.result as TrackedRoute[]).sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      ));
-    };
-    tx.oncomplete = () => db.close();
-  });
-}
-
-export async function getRoute(id: string): Promise<TrackedRoute | null> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(ROUTES_STORE, 'readonly');
-    const store = tx.objectStore(ROUTES_STORE);
-    const request = store.get(id);
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve(request.result as TrackedRoute | null);
-    tx.oncomplete = () => db.close();
-  });
-}
-
-export async function saveRoute(route: TrackedRoute): Promise<void> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(ROUTES_STORE, 'readwrite');
-    const store = tx.objectStore(ROUTES_STORE);
-    const request = store.put(route);
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve();
-    tx.oncomplete = () => db.close();
-  });
-}
-
-export async function deleteRouteFromDB(id: string): Promise<void> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(ROUTES_STORE, 'readwrite');
-    const store = tx.objectStore(ROUTES_STORE);
-    const request = store.delete(id);
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve();
-    tx.oncomplete = () => db.close();
-  });
 }
 
 export async function getHostel(id: string): Promise<Hostel | null> {

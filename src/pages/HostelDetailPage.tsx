@@ -334,6 +334,13 @@ export default function HostelDetailPage() {
                   <span className="text-sm text-slate-300">
                     <span className="font-semibold text-white">{rentItem.shares}</span>{' '}
                     {rentItem.shares === 1 ? 'Person' : 'People'} per Room
+                    <span className={`ml-2 text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${
+                      rentItem.ac
+                        ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-300'
+                        : 'bg-slate-600/30 border-slate-600 text-slate-400'
+                    }`}>
+                      {rentItem.ac ? 'AC' : 'Non-AC'}
+                    </span>
                   </span>
                   <span className="text-sm font-bold text-blue-400">₹{rentItem.rent.toLocaleString()}</span>
                 </div>
@@ -392,7 +399,7 @@ export default function HostelDetailPage() {
         {/* Amenities */}
         {hostel.amenities.length > 0 && (
           <div className="card p-5">
-            <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">Amenities</h2>
+            <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">Other</h2>
             <div className="flex flex-wrap gap-2">
               {hostel.amenities.map((amenity) => (
                 <span key={amenity} className="tag bg-blue-500/10 border-blue-500/30 text-blue-400">

@@ -4,7 +4,6 @@ import HomePage from './pages/HomePage';
 import AddHostelPage from './pages/AddHostelPage';
 import HostelDetailPage from './pages/HostelDetailPage';
 import MapPage from './pages/MapPage';
-import TrackPage from './pages/TrackPage';
 
 export default function App() {
   return (
@@ -17,7 +16,6 @@ export default function App() {
         <Route path="/edit/:id" element={<AddHostelPage />} />
         <Route path="/hostel/:id" element={<HostelDetailPage />} />
         <Route path="/map" element={<MapPage />} />
-        <Route path="/track" element={<TrackPage />} />
       </Routes>
     </BrowserRouter>
   );

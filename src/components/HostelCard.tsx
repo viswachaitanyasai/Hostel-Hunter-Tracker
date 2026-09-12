@@ -80,17 +80,17 @@ export default function HostelCard({ hostel, disableNavigation }: HostelCardProp
             <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
-            <span>{hostel.rents.map((r) => `${r.shares} sharing @ ₹${r.rent}`).join(', ')}</span>
+            <span>{hostel.rents.map((r) => `${r.shares} sharing${r.ac ? ' (AC)' : ''} @ ₹${r.rent}`).join(', ')}</span>
           </div>
         )}
         <div className="flex items-center gap-2 mt-2 flex-wrap">
-          {hostel.amenities.slice(0, 3).map((amenity) => (
+          {hostel.amenities.slice(0, 4).map((amenity) => (
             <span key={amenity} className="text-[10px] px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 border border-slate-600">
               {amenity}
             </span>
           ))}
-          {hostel.amenities.length > 3 && (
-            <span className="text-[10px] text-slate-400">+{hostel.amenities.length - 3}</span>
+          {hostel.amenities.length > 4 && (
+            <span className="text-[10px] text-slate-400">+{hostel.amenities.length - 4}</span>
           )}
         </div>
       </div>

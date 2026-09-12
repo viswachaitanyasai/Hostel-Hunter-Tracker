@@ -1,6 +1,6 @@
-import type { Hostel, TrackedRoute, TrackPoint } from '../types';
+import type { Hostel } from '../types';
 import { v4 as uuid } from 'uuid';
-import { getAllHostels, getHostel, saveHostel, deleteHostel, getAllRoutes, getRoute, saveRoute, deleteRouteFromDB } from './indexeddb';
+import { getAllHostels, getHostel, saveHostel, deleteHostel } from './indexeddb';
 
 export async function listHostels(): Promise<Hostel[]> {
   return getAllHostels();
@@ -40,61 +40,7 @@ export async function removeHostel(id: string): Promise<void> {
   await deleteHostel(id);
 }
 
-// ─── Route Tracking ────────────────────────────────────────────
-
-export async function listRoutes(): Promise<TrackedRoute[]> {
-  return getAllRoutes();
-}
-
-export async function getRouteById(id: string): Promise<TrackedRoute | null> {
-  return getRoute(id);
-}
-
-export async function createRoute(data: {
-  name: string;
-  points: TrackPoint[];
-  distance: number;
-  duration: number;
-  startedAt: string;
-  finishedAt: string;
-}): Promise<TrackedRoute> {
-  const now = new Date().toISOString();
-  const route: TrackedRoute = {
-    ...data,
-    id: uuid(),
-    createdAt: now,
-  };
-  await saveRoute(route);
-  return route;
-}
-
-export async function removeRoute(id: string): Promise<void> {
-  await deleteRouteFromDB(id);
-}
-
 // ─── Helpers ────────────────────────────────────────────────────
-
-export function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371000;
-  const toRad = (deg: number) => (deg * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-export function calculateTotalDistance(points: TrackPoint[]): number {
-  let total = 0;
-  for (let i = 1; i < points.length; i++) {
-    total += haversineDistance(
-      points[i - 1].lat, points[i - 1].lng,
-      points[i].lat, points[i].lng,
-    );
-  }
-  return total;
-}
 
 /**
  * Converts a File or Blob to a base64 data URL.

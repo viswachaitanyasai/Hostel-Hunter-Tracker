@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, CircleMarker, useMapEvents, useMap } from 'react-leaflet';
 import { icon } from 'leaflet';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { createHostel, updateHostel, getHostelById, fileToBase64 } from '../storage';
-import { AMENITIES_LIST } from '../types';
+import { AMENITIES_LIST, SHARE_OPTIONS } from '../types';
 import type { HostelRent, HostelType, ElectricityType } from '../types';
 
 const markerIcon = icon({
@@ -16,16 +16,17 @@ const markerIcon = icon({
   popupAnchor: [1, -34],
 });
 
-function MapCenterUpdater({ lat, lng, gpsZoomed }: { lat: number; lng: number; gpsZoomed: boolean }) {
+/**
+ * Recenters + zooms the map to the pin every time a new GPS fix is applied
+ * (keyed on gpsFixTime so repeated detects re-center even at the same coords).
+ */
+function MapCenterUpdater({ lat, lng, gpsFixTime }: { lat: number; lng: number; gpsFixTime: number | null }) {
   const map = useMap();
-  const appliedZoom = useRef(false);
-  if (gpsZoomed && !appliedZoom.current) {
-    map.setView([lat, lng], 16);
-    appliedZoom.current = true;
-  } else if (!gpsZoomed) {
-    appliedZoom.current = false;
-    map.setView([lat, lng], map.getZoom());
-  }
+  useEffect(() => {
+    if (gpsFixTime !== null) {
+      map.setView([lat, lng], 16);
+    }
+  }, [gpsFixTime, lat, lng, map]);
   return null;
 }
 
@@ -78,22 +79,26 @@ function stripNonDigits(val: string): string {
   return out;
 }
 
-const DEFAULT_SHARES: HostelRent[] = [
-  { shares: 3, rent: 0 },
-];
-
 export default function AddHostelPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
-  const { lat, lng, loading: gpsLoading, error: gpsError, getCurrentPosition } = useGeolocation();
+  const {
+    lat: gpsLat,
+    lng: gpsLng,
+    timestamp: gpsTimestamp,
+    loading: gpsLoading,
+    error: gpsError,
+    getCurrentPosition,
+    resetLocation: resetGps,
+  } = useGeolocation();
 
   const isEditing = !!id;
 
   const [name, setName] = useState('');
   const [hostelType, setHostelType] = useState<HostelType>('boys');
-  const [rents, setRents] = useState<HostelRent[]>(DEFAULT_SHARES);
+  const [rents, setRents] = useState<HostelRent[]>([]);
   const [securityFee, setSecurityFee] = useState('');
   const [otherFines, setOtherFines] = useState('');
   // Ratings
@@ -119,11 +124,11 @@ export default function AddHostelPage() {
   // Location state
   const [hostelLat, setHostelLat] = useState<number | null>(null);
   const [hostelLng, setHostelLng] = useState<number | null>(null);
+  const [gpsFixTime, setGpsFixTime] = useState<number | null>(null);
   const [address, setAddress] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [loadingEdit, setLoadingEdit] = useState(false);
-  const [gpsZoomed, setGpsZoomed] = useState(false);
 
   // Load existing hostel data for editing
   useEffect(() => {
@@ -170,21 +175,32 @@ export default function AddHostelPage() {
     getCurrentPosition();
   };
 
-  // When GPS updates, set hostel location and zoom in
+  /**
+   * Apply EVERY new GPS fix to the pin — even if a pin already exists, and even
+   * if the coordinates are identical. Keyed on the fix timestamp so a re-detect
+   * always re-fires and corrects a wrong pin. Works in add AND edit mode.
+   */
   useEffect(() => {
-    if (lat && lng && hostelLat === null && hostelLng === null && !isEditing) {
-      setHostelLat(lat);
-      setHostelLng(lng);
-      reverseGeocode(lat, lng).then(setAddress);
-      setGpsZoomed(true);
-    }
-  }, [lat, lng, hostelLat, hostelLng, isEditing]);
+    if (gpsLat === null || gpsLng === null || gpsTimestamp === null) return;
+    setHostelLat(gpsLat);
+    setHostelLng(gpsLng);
+    setGpsFixTime(gpsTimestamp);
+    reverseGeocode(gpsLat, gpsLng).then(setAddress);
+  }, [gpsLat, gpsLng, gpsTimestamp]);
 
   const handleMapClick = (newLat: number, newLng: number) => {
     setHostelLat(newLat);
     setHostelLng(newLng);
     reverseGeocode(newLat, newLng).then(setAddress);
-    setGpsZoomed(false);
+    setGpsFixTime(null);
+  };
+
+  const handleClearPin = () => {
+    setHostelLat(null);
+    setHostelLng(null);
+    setGpsFixTime(null);
+    setAddress('');
+    resetGps();
   };
 
   const toggleAmenity = (amenity: string) => {
@@ -247,17 +263,17 @@ export default function AddHostelPage() {
     setDragOverIndex(null);
   };
 
-  const updateRent = (index: number, field: 'shares' | 'rent', value: number) => {
+  const updateRent = (index: number, field: 'shares' | 'rent' | 'ac', value: number | boolean) => {
     setRents((prev) => prev.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
   };
 
-  const addRentRow = () => {
-    const maxShares = Math.max(...rents.map((r) => r.shares), 0);
-    setRents((prev) => [...prev, { shares: maxShares + 1, rent: 0 }]);
+  // Adds a rent row for the tapped share count. Tapping the same share again
+  // adds another row (e.g. to add an AC option alongside the Non-AC one).
+  const addRentRow = (shares: number) => {
+    setRents((prev) => [...prev, { shares, rent: 0, ac: false }]);
   };
 
   const removeRentRow = (index: number) => {
-    if (rents.length <= 1) return;
     setRents((prev) => prev.filter((_, i) => i !== index));
   };
 
@@ -271,7 +287,7 @@ export default function AddHostelPage() {
     }
     const validRents = rents.filter((r) => r.rent > 0);
     if (validRents.length === 0) {
-      setError('Please enter at least one valid rent amount');
+      setError('Please add at least one sharing option with a valid rent amount');
       return;
     }
     if (!hostelLat || !hostelLng) {
@@ -440,63 +456,77 @@ export default function AddHostelPage() {
 
           {/* 5. Rent per Sharing */}
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="input-label mb-0">Rent per Sharing *</label>
-              <button
-                type="button"
-                onClick={addRentRow}
-                className="flex items-center gap-1 px-3 py-1 text-xs font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-xl hover:bg-blue-500/30 transition-colors"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                Add Share
-              </button>
+            <label className="input-label">Rent per Sharing *</label>
+            <div className="flex gap-2 mb-2">
+              {SHARE_OPTIONS.map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => addRentRow(n)}
+                  className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-all ${
+                    rents.some((r) => r.shares === n)
+                      ? 'bg-blue-500/20 border-blue-500 text-blue-400'
+                      : 'bg-slate-800 border-slate-600 text-slate-400 hover:border-slate-500'
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
             </div>
-            <div className="space-y-2">
-              {rents.map((rentItem, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        value={rentItem.shares}
-                        onChange={(e) => updateRent(index, 'shares', Math.max(1, Number(e.target.value)))}
-                        min="1"
-                        className="w-16 bg-slate-700/50 border border-slate-600 rounded-xl px-3 py-2.5 text-white text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
-                      />
-                      <span className="text-slate-400 text-sm font-medium">
-                        {rentItem.shares === 1 ? 'Share' : 'Shares'}
-                      </span>
+            <p className="text-xs text-slate-500 mb-3">
+              Tap a number to add a rent option. Tap the same number again to add an AC option for that sharing.
+            </p>
+            {rents.length > 0 && (
+              <div className="space-y-2">
+                {rents.map((rentItem, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    {/* Shares badge */}
+                    <div className="flex items-center bg-slate-700/50 border border-slate-600 rounded-xl px-3 py-2.5 flex-shrink-0">
+                      <span className="text-sm font-bold text-white">{rentItem.shares}</span>
+                      <span className="text-[10px] text-slate-400 ml-1">{rentItem.shares === 1 ? 'Share' : 'Shares'}</span>
                     </div>
-                  </div>
-                  <div className="relative flex-[2]">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₹</span>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={rentItem.rent ? formatIndianNumber(String(rentItem.rent)) : ''}
-                      onChange={(e) => {
-                        updateRent(index, 'rent', Number(stripNonDigits(e.target.value)));
-                      }}
-                      placeholder="Rent"
-                      className="w-full bg-slate-700/50 border border-slate-600 rounded-xl pl-8 pr-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
-                    />
-                  </div>
-                  {rents.length > 1 && (
+                    {/* AC / Non-AC toggle */}
+                    <button
+                      type="button"
+                      onClick={() => updateRent(index, 'ac', !rentItem.ac)}
+                      className={`flex-shrink-0 px-2.5 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                        rentItem.ac
+                          ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300'
+                          : 'bg-slate-800 border-slate-600 text-slate-400 hover:border-slate-500'
+                      }`}
+                      title={rentItem.ac ? 'AC room — tap to switch to Non-AC' : 'Non-AC room — tap to switch to AC'}
+                    >
+                      {rentItem.ac ? 'AC' : 'Non-AC'}
+                    </button>
+                    {/* Rent input */}
+                    <div className="relative flex-1 min-w-0">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₹</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={rentItem.rent ? formatIndianNumber(String(rentItem.rent)) : ''}
+                        onChange={(e) => {
+                          updateRent(index, 'rent', Number(stripNonDigits(e.target.value)));
+                        }}
+                        placeholder="Rent"
+                        className="w-full bg-slate-700/50 border border-slate-600 rounded-xl pl-8 pr-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                      />
+                    </div>
+                    {/* Remove row */}
                     <button
                       type="button"
                       onClick={() => removeRentRow(index)}
-                      className="p-2 text-slate-500 hover:text-red-400 transition-colors"
+                      className="flex-shrink-0 p-2 text-slate-500 hover:text-red-400 transition-colors"
+                      aria-label="Remove this rent option"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     </button>
-                  )}
-                </div>
-              ))}
-            </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* 6. Security Fee */}
@@ -661,9 +691,9 @@ export default function AddHostelPage() {
             />
           </div>
 
-          {/* 10. Amenities */}
+          {/* 10. Other */}
           <div>
-            <label className="input-label">Amenities</label>
+            <label className="input-label">Other</label>
             <div className="flex flex-wrap gap-2">
               {AMENITIES_LIST.map((amenity) => (
                 <button
@@ -715,30 +745,44 @@ export default function AddHostelPage() {
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="input-label mb-0">Location *</label>
-              <button
-                type="button"
-                onClick={handleLocationDetect}
-                disabled={gpsLoading}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-xl hover:bg-blue-500/30 transition-colors disabled:opacity-50"
-              >
-                {gpsLoading ? (
-                  <>
-                    <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    Detecting...
-                  </>
-                ) : (
-                  <>
+              <div className="flex items-center gap-2">
+                {hostelLat !== null && hostelLng !== null && (
+                  <button
+                    type="button"
+                    onClick={handleClearPin}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-500/20 text-red-400 border border-red-500/30 rounded-xl hover:bg-red-500/30 transition-colors"
+                  >
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
-                    Detect GPS
-                  </>
+                    Clear Pin
+                  </button>
                 )}
-              </button>
+                <button
+                  type="button"
+                  onClick={handleLocationDetect}
+                  disabled={gpsLoading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-xl hover:bg-blue-500/30 transition-colors disabled:opacity-50"
+                >
+                  {gpsLoading ? (
+                    <>
+                      <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Detecting...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      Detect GPS
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
 
             {gpsError && (
@@ -757,16 +801,27 @@ export default function AddHostelPage() {
                   attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
                   url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
                 />
-                {hostelLat && hostelLng && (
+                {hostelLat !== null && hostelLng !== null && (
                   <>
-                    <Marker position={[hostelLat, hostelLng]} icon={markerIcon} />
-                    <MapCenterUpdater lat={hostelLat} lng={hostelLng} gpsZoomed={gpsZoomed} />
+                    <Marker
+                      position={[hostelLat, hostelLng]}
+                      icon={markerIcon}
+                      eventHandlers={{ click: handleClearPin }}
+                    />
+                    {/* Invisible tap target over the pin for reliable tap-to-remove */}
+                    <CircleMarker
+                      center={[hostelLat, hostelLng]}
+                      radius={14}
+                      pathOptions={{ opacity: 0, fillOpacity: 0 }}
+                      eventHandlers={{ click: handleClearPin }}
+                    />
+                    <MapCenterUpdater lat={hostelLat} lng={hostelLng} gpsFixTime={gpsFixTime} />
                   </>
                 )}
                 <LocationPicker onLocationChange={handleMapClick} />
               </MapContainer>
             </div>
-            <p className="text-xs text-slate-500">Tap on the map to set or adjust location</p>
+            <p className="text-xs text-slate-500">Tap the map to set the pin · Tap the pin (or Clear Pin) to remove it</p>
 
             <input
               type="text"
