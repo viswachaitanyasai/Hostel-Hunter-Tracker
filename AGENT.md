@@ -10,7 +10,8 @@ A mobile-first Progressive Web App (PWA) for finding and managing hostels. Built
 |---|---|
 | Framework | React 19 + TypeScript 6 |
 | Build | Vite 8 |
-| Styling | Tailwind CSS 4 (via `@tailwindcss/vite`) |
+| Styling | Tailwind CSS 4 (via `@tailwindcss/vite`) with custom **"Ink & Iris" dark design system** (see below) |
+| Typography | Inter Variable (`@fontsource-variable/inter`, bundled locally — offline-safe) |
 | Routing | React Router DOM 7 |
 | Maps | Leaflet 1.9 + react-leaflet 5 (ESRI World Imagery satellite tiles + World Boundaries and Places label overlay, free, no API key) |
 | Storage | IndexedDB (each hostel = 1 record, sorted by newest) |
@@ -243,6 +244,50 @@ The migration runs on **both** `getAllHostels()` (bulk list) and `getHostel()` (
 - Safe-area padding for notched phones (`safe-area-bottom`)
 - Content has `pb-20` to avoid bottom nav overlap
 
+## Design System — "Ink & Iris"
+
+All UI styling is centralized in `src/index.css` using Tailwind 4 `@theme` tokens + `@layer components` utility classes. Pages never hard-code surface colors; they use the component classes or ink/iris tokens.
+
+### Palette
+- **Ink (neutrals)**: near-black cool ramp `ink-950 #09090e` (page bg) → `ink-900/850/800` (cards/panels/inputs) → `ink-700…500` (borders/controls) → `ink-400…300` (secondary text) → `ink-200…100` (primary text)
+- **Iris (accent)**: indigo ramp `iris-300/400/500/600` — all primary actions, active states, links, focus rings
+- **Semantic accents**: cyan = AC, emerald = success/included, rose = danger/delete, amber = ratings/star, sky = Boys badge, fuchsia = Co-living badge
+- **Ambient background**: body has fixed radial gradient glows (indigo top-center, sky top-right, purple left) over ink-950
+- Borders are mostly `white/[0.06]`–`white/[0.12]` alpha strokes instead of solid greys
+
+### Component classes (defined once in index.css, reused everywhere)
+| Class | Purpose |
+|---|---|
+| `.card` | Base surface (ink-900/80, rounded-2xl, hairline border, layered shadow) |
+| `.panel` | Elevated section surface for form/detail sub-blocks (ink-850/80) |
+| `.btn-primary` | Gradient iris button with glow shadow + hover intensify |
+| `.btn-secondary`, `.btn-danger` | Neutral / rose-outline buttons |
+| `.icon-btn` | 40px square glassy icon button (headers) |
+| `.input-field`, `.input-label` | Text inputs + labels (ink-800/60 fields, iris focus ring) |
+| `.chip` / `.chip-selected` | Filter/amenity/share toggle chips (selected = iris glow) |
+| `.pill`, `.pill-ac`, `.pill-nonac` | Tiny AC/Non-AC badges |
+| `.tag` | Amenity tags |
+| `.section-title` | Uppercase tracking-widest 11px headings |
+
+### Other conventions
+- **Bottom nav**: floating glass pill (`Layout.tsx`) — `backdrop-blur-xl`, iris glow pill behind active tab; content wraps in `pb-28`
+- **Font**: Inter Variable loaded in `main.tsx` (font-feature settings cv11/ss01); theme font-sans wired via `@theme --font-sans`
+- **Leaflet**: full dark override — dark popups, glassy zoom controls, slim scrollbars app-wide, dark attribution
+- **Selected star ratings** use amber-400; unfilled use ink-700
+
+### Motion (CSS-only, no animation library)
+Defined in `src/index.css` `@layer components`; all decorative animation is disabled under `prefers-reduced-motion: reduce`.
+| Class | Purpose |
+|---|---|
+| `.page-enter` | Page transition: fade + rise (0.4s, `backwards` fill so fixed children aren't trapped by a lingering transform) |
+| `.page-enter-fade` | Opacity-only variant for map pages (transforms can interact with Leaflet panes) |
+| `.stagger-children` | Direct children rise in sequence (40ms steps up to the 12th child, later children share the max delay). Used on: HomePage grid + skeleton grid + filters panel, AddHostelPage form, HostelDetailPage content stack |
+| `.pop-in` | Small scale+rise for dynamically added rent rows and modal dialogs |
+| `.overlay-in` | Fade for full-screen viewer + delete modal backdrop |
+| `.toast-in` | Drop-in for the import status toast |
+
+**Important**: page transitions animate page *content only* — `App.tsx` wraps standalone routes in a location-keyed `PageShell`, and `Layout.tsx` keys `<main>` — so the bottom nav (position: fixed) sits **outside** any transformed ancestor. Don't add `page-enter` to a wrapper containing fixed-position chrome. The map route uses `page-enter-fade` for the same reason.
+
 ## Key Design Decisions
 
 1. **AC is per-rent-row, not an amenity**: AC was first a boolean `hasAC`, then an amenity chip, and now a boolean `ac` field on each `HostelRent`. Rationale: hostels commonly offer both AC and Non-AC rooms of the same share count at different prices, so AC must be part of the rent option itself. The form implements this with share buttons 1–5 (tap again to add a second row for the same count, then toggle it to AC). Old data migrates: `hasAC: true` marks the first rent row AC; stray 'AC' chips in amenities are stripped on read.
@@ -260,7 +305,7 @@ The migration runs on **both** `getAllHostels()` (bulk list) and `getHostel()` (
 13. **Indian number formatting** on all money inputs via `Intl.NumberFormat('en-IN')` + `stripNonDigits()`.
 14. **Full-screen photo viewer** with swipe support, close button, counter, dots, desktop arrows, download.
 15. **PWA**: Installs on mobile home screen; works offline via Workbox service worker; map tiles cached CacheFirst (200 entries, 30 days).
-16. **Dark Theme**: Full dark theme with slate/blue palette; AC accents use cyan.
+16. **Dark theme, one source of truth**: The entire look lives in `src/index.css` ("Ink & Iris" design system — see section above). Changing the palette/theme = editing tokens there; pages only consume component classes and ink/iris tokens.
 
 ## Scripts
 

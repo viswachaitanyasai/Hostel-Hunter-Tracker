@@ -51,7 +51,7 @@ function StarRating({ value, onChange, maxStars = 5 }: { value: number; onChange
           className={`transition-all duration-150 ${onChange ? 'cursor-pointer hover:scale-110' : 'cursor-default'}`}
         >
           <svg
-            className={`w-6 h-6 ${star <= value ? 'text-yellow-400' : 'text-slate-600'}`}
+            className={`w-6 h-6 transition-colors ${star <= value ? 'text-amber-400' : 'text-ink-700 hover:text-ink-600'}`}
             fill="currentColor"
             viewBox="0 0 24 24"
           >
@@ -341,23 +341,23 @@ export default function AddHostelPage() {
 
   if (loadingEdit) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-slate-400">Loading...</p>
+          <div className="w-8 h-8 border-2 border-iris-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-ink-400">Loading...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 pb-8">
+    <div className="min-h-screen">
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-lg border-b border-slate-800">
+      <header className="sticky top-0 z-40 bg-ink-950/80 backdrop-blur-xl border-b border-white/[0.06]">
         <div className="max-w-lg mx-auto px-4 py-4 flex items-center gap-3">
           <button
             onClick={() => navigate(-1)}
-            className="p-2 hover:bg-slate-800 rounded-xl transition-colors"
+            className="icon-btn"
             aria-label="Go back"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -368,15 +368,15 @@ export default function AddHostelPage() {
         </div>
       </header>
 
-      <div className="max-w-lg mx-auto px-4 pt-4">
-        <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="max-w-lg mx-auto px-4 pt-4 pb-10">
+        <form onSubmit={handleSubmit} className="space-y-6 stagger-children">
           {/* Error */}
           {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl flex items-start gap-2">
-              <svg className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="p-3.5 bg-rose-500/10 border border-rose-500/25 rounded-2xl flex items-start gap-2.5">
+              <svg className="w-5 h-5 text-rose-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <p className="text-sm text-red-400">{error}</p>
+              <p className="text-sm text-rose-300">{error}</p>
             </div>
           )}
 
@@ -404,8 +404,8 @@ export default function AddHostelPage() {
                   onClick={() => setHostelType(type)}
                   className={`flex-1 py-3 rounded-xl text-sm font-medium border transition-all duration-200 ${
                     hostelType === type
-                      ? 'bg-blue-500/20 border-blue-500 text-blue-400'
-                      : 'bg-slate-800 border-slate-600 text-slate-400 hover:border-slate-500'
+                      ? 'bg-iris-500/15 border-iris-500/60 text-iris-300'
+                      : 'bg-ink-800/60 border-white/[0.09] text-ink-300 hover:border-white/25'
                   }`}
                 >
                   {type === 'boys' ? (
@@ -465,34 +465,34 @@ export default function AddHostelPage() {
                   onClick={() => addRentRow(n)}
                   className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-all ${
                     rents.some((r) => r.shares === n)
-                      ? 'bg-blue-500/20 border-blue-500 text-blue-400'
-                      : 'bg-slate-800 border-slate-600 text-slate-400 hover:border-slate-500'
+                      ? 'bg-iris-500/15 border-iris-500/60 text-iris-300'
+                      : 'bg-ink-800/60 border-white/[0.09] text-ink-300 hover:border-white/25'
                   }`}
                 >
                   {n}
                 </button>
               ))}
             </div>
-            <p className="text-xs text-slate-500 mb-3">
-              Tap a number to add a rent option. Tap the same number again to add an AC option for that sharing.
+            <p className="text-[11px] text-ink-500 mb-3">
+              Tap a number to add a rent option · tap again for an AC option
             </p>
             {rents.length > 0 && (
               <div className="space-y-2">
                 {rents.map((rentItem, index) => (
-                  <div key={index} className="flex items-center gap-2">
+                  <div key={index} className="flex items-center gap-2 panel !rounded-xl p-2 pop-in">
                     {/* Shares badge */}
-                    <div className="flex items-center bg-slate-700/50 border border-slate-600 rounded-xl px-3 py-2.5 flex-shrink-0">
-                      <span className="text-sm font-bold text-white">{rentItem.shares}</span>
-                      <span className="text-[10px] text-slate-400 ml-1">{rentItem.shares === 1 ? 'Share' : 'Shares'}</span>
+                    <div className="flex flex-col items-center justify-center bg-ink-800/80 border border-white/[0.08] rounded-lg px-2.5 py-1.5 flex-shrink-0 min-w-[44px]">
+                      <span className="text-sm font-bold text-white leading-none">{rentItem.shares}</span>
+                      <span className="text-[8px] text-ink-400 uppercase tracking-wide mt-0.5">{rentItem.shares === 1 ? 'Share' : 'Shares'}</span>
                     </div>
                     {/* AC / Non-AC toggle */}
                     <button
                       type="button"
                       onClick={() => updateRent(index, 'ac', !rentItem.ac)}
-                      className={`flex-shrink-0 px-2.5 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                      className={`flex-shrink-0 px-2.5 py-2 rounded-lg text-[11px] font-bold border transition-all active:scale-95 ${
                         rentItem.ac
-                          ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300'
-                          : 'bg-slate-800 border-slate-600 text-slate-400 hover:border-slate-500'
+                          ? 'bg-cyan-500/15 border-cyan-400/50 text-cyan-300'
+                          : 'bg-ink-800/60 border-white/[0.09] text-ink-400 hover:border-white/25'
                       }`}
                       title={rentItem.ac ? 'AC room — tap to switch to Non-AC' : 'Non-AC room — tap to switch to AC'}
                     >
@@ -500,7 +500,7 @@ export default function AddHostelPage() {
                     </button>
                     {/* Rent input */}
                     <div className="relative flex-1 min-w-0">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₹</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400 text-sm">₹</span>
                       <input
                         type="text"
                         inputMode="numeric"
@@ -509,14 +509,14 @@ export default function AddHostelPage() {
                           updateRent(index, 'rent', Number(stripNonDigits(e.target.value)));
                         }}
                         placeholder="Rent"
-                        className="w-full bg-slate-700/50 border border-slate-600 rounded-xl pl-8 pr-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                        className="w-full bg-ink-800/60 border border-white/[0.08] rounded-xl pl-8 pr-3 py-2.5 text-white text-sm placeholder-ink-400 focus:outline-none focus:ring-2 focus:ring-iris-500/50 focus:border-iris-500/60 transition-all"
                       />
                     </div>
                     {/* Remove row */}
                     <button
                       type="button"
                       onClick={() => removeRentRow(index)}
-                      className="flex-shrink-0 p-2 text-slate-500 hover:text-red-400 transition-colors"
+                      className="flex-shrink-0 p-2 text-ink-500 hover:text-rose-400 transition-colors"
                       aria-label="Remove this rent option"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -533,7 +533,7 @@ export default function AddHostelPage() {
           <div>
             <label className="input-label" htmlFor="securityFee">Security Fee (₹)</label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₹</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400 text-sm">₹</span>
               <input
                 id="securityFee"
                 type="text"
@@ -549,20 +549,20 @@ export default function AddHostelPage() {
           </div>
 
           {/* 7. Food & Electricity */}
-          <div className="card p-4 border border-slate-700">
-            <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">Food & Electricity</h2>
+          <div className="panel p-4">
+            <h2 className="section-title mb-3">Food & Electricity</h2>
 
             {/* Food */}
             <div className="mb-4">
-              <label className="text-xs text-slate-400 font-medium mb-1.5 block">Food</label>
+              <label className="text-[11px] font-medium text-ink-400 mb-1.5 block">Food</label>
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => setFoodIncluded(true)}
                   className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all ${
                     foodIncluded
-                      ? 'bg-green-500/20 border-green-500 text-green-400'
-                      : 'bg-slate-800 border-slate-600 text-slate-400 hover:border-slate-500'
+                      ? 'bg-emerald-500/15 border-emerald-500/60 text-emerald-300'
+                      : 'bg-ink-800/60 border-white/[0.09] text-ink-300 hover:border-white/25'
                   }`}
                 >
                   Included
@@ -572,8 +572,8 @@ export default function AddHostelPage() {
                   onClick={() => setFoodIncluded(false)}
                   className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all ${
                     !foodIncluded
-                      ? 'bg-red-500/20 border-red-500 text-red-400'
-                      : 'bg-slate-800 border-slate-600 text-slate-400 hover:border-slate-500'
+                      ? 'bg-rose-500/15 border-rose-500/60 text-rose-300'
+                      : 'bg-ink-800/60 border-white/[0.09] text-ink-300 hover:border-white/25'
                   }`}
                 >
                   Not Included
@@ -581,7 +581,7 @@ export default function AddHostelPage() {
               </div>
               {!foodIncluded && (
                 <div className="relative mt-2">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₹</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400 text-sm">₹</span>
                   <input
                     type="text"
                     inputMode="numeric"
@@ -590,7 +590,7 @@ export default function AddHostelPage() {
                       setFoodCharges(stripNonDigits(e.target.value));
                     }}
                     placeholder="Food charges per month"
-                    className="w-full bg-slate-700/50 border border-slate-600 rounded-xl pl-8 pr-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                    className="w-full bg-ink-800/60 border border-white/[0.08] rounded-xl pl-8 pr-3 py-2.5 text-white text-sm placeholder-ink-400 focus:outline-none focus:ring-2 focus:ring-iris-500/50 focus:border-iris-500/60 transition-all"
                   />
                 </div>
               )}
@@ -598,7 +598,7 @@ export default function AddHostelPage() {
 
             {/* Electricity */}
             <div>
-              <label className="text-xs text-slate-400 font-medium mb-1.5 block">Electricity</label>
+              <label className="text-[11px] font-medium text-ink-400 mb-1.5 block">Electricity</label>
               <div className="flex gap-2">
                 {(['included', 'fixed', 'per_unit'] as ElectricityType[]).map((eType) => (
                   <button
@@ -607,8 +607,8 @@ export default function AddHostelPage() {
                     onClick={() => setElectricityType(eType)}
                     className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all ${
                       electricityType === eType
-                        ? 'bg-blue-500/20 border-blue-500 text-blue-400'
-                        : 'bg-slate-800 border-slate-600 text-slate-400 hover:border-slate-500'
+                        ? 'bg-iris-500/15 border-iris-500/60 text-iris-300'
+                        : 'bg-ink-800/60 border-white/[0.09] text-ink-300 hover:border-white/25'
                     }`}
                   >
                     {eType === 'included' ? 'Included' : eType === 'fixed' ? 'Fixed Bill' : 'Per Unit'}
@@ -617,7 +617,7 @@ export default function AddHostelPage() {
               </div>
               {electricityType !== 'included' && (
                 <div className="relative mt-2">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₹</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400 text-sm">₹</span>
                   <input
                     type="text"
                     inputMode="numeric"
@@ -626,7 +626,7 @@ export default function AddHostelPage() {
                       setElectricityAmount(stripNonDigits(e.target.value));
                     }}
                     placeholder={electricityType === 'fixed' ? 'Fixed amount per month' : 'Rate per unit (₹)'}
-                    className="w-full bg-slate-700/50 border border-slate-600 rounded-xl pl-8 pr-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                    className="w-full bg-ink-800/60 border border-white/[0.08] rounded-xl pl-8 pr-3 py-2.5 text-white text-sm placeholder-ink-400 focus:outline-none focus:ring-2 focus:ring-iris-500/50 focus:border-iris-500/60 transition-all"
                   />
                 </div>
               )}
@@ -634,8 +634,8 @@ export default function AddHostelPage() {
           </div>
 
           {/* 8. Policy & Agreements */}
-          <div className="card p-4 border border-slate-700">
-            <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">Policy & Agreements</h2>
+          <div className="panel p-4">
+            <h2 className="section-title mb-3">Policy & Agreements</h2>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="input-label" htmlFor="lockInPeriod">Lock-in Period</label>
@@ -644,14 +644,14 @@ export default function AddHostelPage() {
                     id="lockInPeriod"
                     value={lockInPeriod}
                     onChange={(e) => setLockInPeriod(e.target.value)}
-                    className="w-full bg-slate-700/50 border border-slate-600 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all appearance-none"
+                    className="w-full bg-ink-800/60 border border-white/[0.08] rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-iris-500/50 focus:border-iris-500/60 transition-all appearance-none"
                   >
                     <option value="">None</option>
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((m) => (
                       <option key={m} value={m}>{m} {m === 1 ? 'Month' : 'Months'}</option>
                     ))}
                   </select>
-                  <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </div>
@@ -663,14 +663,14 @@ export default function AddHostelPage() {
                     id="noticePeriod"
                     value={noticePeriod}
                     onChange={(e) => setNoticePeriod(e.target.value)}
-                    className="w-full bg-slate-700/50 border border-slate-600 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all appearance-none"
+                    className="w-full bg-ink-800/60 border border-white/[0.08] rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-iris-500/50 focus:border-iris-500/60 transition-all appearance-none"
                   >
                     <option value="">None</option>
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((m) => (
                       <option key={m} value={m}>{m} {m === 1 ? 'Month' : 'Months'}</option>
                     ))}
                   </select>
-                  <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </div>
@@ -702,8 +702,8 @@ export default function AddHostelPage() {
                   onClick={() => toggleAmenity(amenity)}
                   className={`px-3 py-1.5 rounded-xl text-sm font-medium border transition-all duration-200 ${
                     selectedAmenities.includes(amenity)
-                      ? 'bg-blue-500/20 border-blue-500 text-blue-400'
-                      : 'bg-slate-800 border-slate-600 text-slate-400 hover:border-slate-500'
+                      ? 'bg-iris-500/15 border-iris-500/60 text-iris-300'
+                      : 'bg-ink-800/60 border-white/[0.09] text-ink-300 hover:border-white/25'
                   }`}
                 >
                   {amenity}
@@ -713,30 +713,30 @@ export default function AddHostelPage() {
           </div>
 
           {/* 11-14. Ratings */}
-          <div className="card p-4 border border-slate-700">
-            <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-4">Ratings</h2>
+          <div className="panel p-4">
+            <h2 className="section-title mb-4">Ratings</h2>
 
             {/* Room Rating */}
             <div className="mb-4">
-              <label className="text-xs text-slate-400 font-medium mb-1.5 block">Room Rating</label>
+              <label className="text-[11px] font-medium text-ink-400 mb-1.5 block">Room Rating</label>
               <StarRating value={roomRating} onChange={setRoomRating} maxStars={5} />
             </div>
 
             {/* People/Vibe Rating */}
             <div className="mb-4">
-              <label className="text-xs text-slate-400 font-medium mb-1.5 block">People/Vibe Rating</label>
+              <label className="text-[11px] font-medium text-ink-400 mb-1.5 block">People/Vibe Rating</label>
               <StarRating value={peopleRating} onChange={setPeopleRating} maxStars={5} />
             </div>
 
             {/* Owner Rating (out of 3) */}
             <div className="mb-4">
-              <label className="text-xs text-slate-400 font-medium mb-1.5 block">Owner Rating (out of 3)</label>
+              <label className="text-[11px] font-medium text-ink-400 mb-1.5 block">Owner Rating (out of 3)</label>
               <StarRating value={ownerRating} onChange={setOwnerRating} maxStars={3} />
             </div>
 
             {/* Google Maps Review */}
             <div>
-              <label className="text-xs text-slate-400 font-medium mb-1.5 block">Google Maps Review</label>
+              <label className="text-[11px] font-medium text-ink-400 mb-1.5 block">Google Maps Review</label>
               <StarRating value={googleMapsRating} onChange={setGoogleMapsRating} maxStars={5} />
             </div>
           </div>
@@ -750,7 +750,7 @@ export default function AddHostelPage() {
                   <button
                     type="button"
                     onClick={handleClearPin}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-500/20 text-red-400 border border-red-500/30 rounded-xl hover:bg-red-500/30 transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-rose-500/10 text-rose-300 border border-rose-500/25 rounded-xl hover:bg-rose-500/20 transition-colors active:scale-95"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -762,7 +762,7 @@ export default function AddHostelPage() {
                   type="button"
                   onClick={handleLocationDetect}
                   disabled={gpsLoading}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-xl hover:bg-blue-500/30 transition-colors disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-iris-500/10 text-iris-300 border border-iris-500/30 rounded-xl hover:bg-iris-500/20 transition-colors active:scale-95 disabled:opacity-50"
                 >
                   {gpsLoading ? (
                     <>
@@ -786,10 +786,10 @@ export default function AddHostelPage() {
             </div>
 
             {gpsError && (
-              <p className="text-xs text-red-400 mb-2">{gpsError}</p>
+              <p className="text-xs text-rose-400 mb-2">{gpsError}</p>
             )}
 
-            <div className="h-64 rounded-xl overflow-hidden border border-slate-700 mb-2">
+            <div className="h-64 rounded-2xl overflow-hidden border border-white/[0.08] mb-2 shadow-lg shadow-black/30">
               <MapContainer
                 center={[hostelLat || 20.5937, hostelLng || 78.9629]}
                 zoom={5}
@@ -821,7 +821,7 @@ export default function AddHostelPage() {
                 <LocationPicker onLocationChange={handleMapClick} />
               </MapContainer>
             </div>
-            <p className="text-xs text-slate-500">Tap the map to set the pin · Tap the pin (or Clear Pin) to remove it</p>
+            <p className="text-[11px] text-ink-500">Tap the map to set the pin · tap the pin (or Clear Pin) to remove it</p>
 
             <input
               type="text"
@@ -845,8 +845,8 @@ export default function AddHostelPage() {
                     onDragOver={(e) => handleDragOver(e, index)}
                     onDrop={() => handleDrop(index)}
                     onDragEnd={handleDragEnd}
-                    className={`relative aspect-square rounded-xl overflow-hidden bg-slate-700 group transition-all duration-200 ${
-                      dragOverIndex === index ? 'ring-2 ring-blue-500 scale-95 opacity-60' : ''
+                    className={`relative aspect-square rounded-xl overflow-hidden bg-ink-800 group transition-all duration-200 ${
+                      dragOverIndex === index ? 'ring-2 ring-iris-500 scale-95 opacity-60' : ''
                     } ${dragIndexRef.current === index ? 'opacity-40' : ''}`}
                   >
                     <img src={photo} alt={`Photo ${index + 1}`} className="w-full h-full object-cover" />
@@ -864,7 +864,7 @@ export default function AddHostelPage() {
                     <button
                       type="button"
                       onClick={() => removePhoto(index)}
-                      className="absolute top-1 right-1 w-5 h-5 bg-red-500/80 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500"
+                      className="absolute top-1 right-1 w-5 h-5 bg-rose-500/90 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-rose-500"
                     >
                       <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -903,7 +903,7 @@ export default function AddHostelPage() {
             )
             }
             {photos.length > 1 && (
-              <p className="text-xs text-slate-500 mb-2">
+              <p className="text-[11px] text-ink-500 mb-2">
                 Drag or use arrows to reorder. First photo is used as the card thumbnail.
               </p>
             )}
@@ -911,7 +911,7 @@ export default function AddHostelPage() {
               <button
                 type="button"
                 onClick={() => cameraInputRef.current?.click()}
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-slate-600 hover:border-blue-500/50 text-slate-400 hover:text-blue-400 transition-all duration-200 bg-slate-800/50"
+                className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl border border-dashed border-white/[0.12] hover:border-iris-500/50 text-ink-400 hover:text-iris-300 transition-all duration-200 bg-ink-850/60"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -922,7 +922,7 @@ export default function AddHostelPage() {
               <button
                 type="button"
                 onClick={() => galleryInputRef.current?.click()}
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-slate-600 hover:border-blue-500/50 text-slate-400 hover:text-blue-400 transition-all duration-200 bg-slate-800/50"
+                className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl border border-dashed border-white/[0.12] hover:border-iris-500/50 text-ink-400 hover:text-iris-300 transition-all duration-200 bg-ink-850/60"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -930,7 +930,7 @@ export default function AddHostelPage() {
                 <span className="text-sm font-medium">Gallery</span>
               </button>
             </div>
-            <p className="text-xs text-slate-500 mt-1.5">
+            <p className="text-[11px] text-ink-500 mt-1.5">
               Camera takes one photo at a time (tap multiple times). Gallery lets you select multiple.
             </p>
             <input

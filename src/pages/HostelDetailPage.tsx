@@ -20,14 +20,14 @@ function StarRatingDisplay({ value, maxStars = 5 }: { value: number; maxStars?: 
       {Array.from({ length: maxStars }, (_, i) => i + 1).map((star) => (
         <svg
           key={star}
-          className={`w-4 h-4 ${star <= value ? 'text-yellow-400' : 'text-slate-600'}`}
+          className={`w-4 h-4 ${star <= value ? 'text-amber-400' : 'text-ink-700'}`}
           fill="currentColor"
           viewBox="0 0 24 24"
         >
           <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
         </svg>
       ))}
-      {value > 0 && <span className="text-xs text-slate-400 ml-1">{value}/{maxStars}</span>}
+      {value > 0 && <span className="text-xs text-ink-400 ml-1">{value}/{maxStars}</span>}
     </div>
   );
 }
@@ -80,10 +80,10 @@ export default function HostelDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-slate-400">Loading...</p>
+          <div className="w-8 h-8 border-2 border-iris-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-ink-400">Loading...</p>
         </div>
       </div>
     );
@@ -91,14 +91,14 @@ export default function HostelDetailPage() {
 
   if (!hostel) {
     return (
-      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4">
-        <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mb-4">
-          <svg className="w-8 h-8 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="min-h-screen flex flex-col items-center justify-center p-4">
+        <div className="w-16 h-16 bg-ink-900 rounded-2xl border border-white/[0.06] flex items-center justify-center mb-4">
+          <svg className="w-8 h-8 text-ink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </div>
-        <h2 className="text-lg font-semibold text-slate-300 mb-1">Hostel not found</h2>
-        <p className="text-sm text-slate-400 mb-4">This hostel may have been removed</p>
+        <h2 className="text-lg font-semibold text-ink-100 mb-1">Hostel not found</h2>
+        <p className="text-sm text-ink-400 mb-4">This hostel may have been removed</p>
         <button onClick={() => navigate('/')} className="btn-primary">
           Go Home
         </button>
@@ -109,12 +109,12 @@ export default function HostelDetailPage() {
   const cheapestRent = hostel.rents.length > 0 ? Math.min(...hostel.rents.map((r) => r.rent)) : 0;
 
   return (
-    <div className="min-h-screen bg-slate-900 pb-8">
+    <div className="min-h-screen pb-8">
       {/* Header */}
       <header className="relative">
         {/* Photo gallery with swipe */}
         <div
-          className="relative h-72 bg-slate-800 select-none group"
+          className="relative h-72 bg-ink-850 select-none group"
           onTouchStart={(e) => {
             touchRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY };
           }}
@@ -186,14 +186,14 @@ export default function HostelDetailPage() {
             </>
           ) : (
             <div className="w-full h-full flex items-center justify-center">
-              <svg className="w-20 h-20 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-20 h-20 text-ink-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
             </div>
           )}
 
           {/* Gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/20 to-transparent pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-t from-ink-950 via-ink-950/20 to-transparent pointer-events-none" />
 
           {/* Back button */}
           <button
@@ -209,7 +209,7 @@ export default function HostelDetailPage() {
           {/* Edit button */}
           <button
             onClick={() => navigate(`/edit/${hostel.id}`)}
-            className="absolute top-4 right-4 p-2.5 bg-black/40 backdrop-blur-sm rounded-xl hover:bg-blue-500/40 transition-colors z-10"
+            className="absolute top-4 right-4 p-2.5 bg-black/40 backdrop-blur-sm rounded-xl hover:bg-iris-500/40 transition-colors z-10"
             aria-label="Edit hostel"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -235,22 +235,22 @@ export default function HostelDetailPage() {
       </header>
 
       {/* Content */}
-      <div className="max-w-lg mx-auto px-4 -mt-6 relative z-10 space-y-4">
+      <div className="max-w-lg mx-auto px-4 -mt-6 relative z-10 space-y-4 stagger-children">
         {/* Name & Rent */}
         <div className="card p-5">
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
                 <h1 className="text-xl font-bold text-white">{hostel.name}</h1>
-                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                <span          className={`text-xs font-medium px-2 py-0.5 rounded-full ${
                   hostel.type === 'boys'
-                    ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                    : 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                    ? 'bg-sky-500/15 text-sky-300 border border-sky-400/25'
+                    : 'bg-fuchsia-500/15 text-fuchsia-300 border border-fuchsia-400/25'
                 }`}>
                   {hostel.type === 'boys' ? 'Boys' : 'Co-living'}
                 </span>
               </div>
-              <div className="flex items-center gap-1.5 mt-1 text-sm text-slate-400">
+              <div className="flex items-center gap-1.5 mt-1 text-sm text-ink-400">
                 <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -259,8 +259,8 @@ export default function HostelDetailPage() {
               </div>
             </div>
             <div className="text-right flex-shrink-0">
-              <p className="text-2xl font-bold text-blue-400">₹{cheapestRent.toLocaleString()}</p>
-              <p className="text-xs text-slate-500">starting price</p>
+              <p className="text-2xl font-bold bg-gradient-to-r from-iris-300 to-sky-300 bg-clip-text text-transparent">₹{cheapestRent.toLocaleString()}</p>
+              <p className="text-[11px] text-ink-500">starting price</p>
             </div>
           </div>
 
@@ -269,7 +269,7 @@ export default function HostelDetailPage() {
             {hostel.contactNumber && (
               <a
                 href={`tel:${hostel.contactNumber}`}
-                className="tag hover:bg-green-500/10 hover:border-green-500/30 hover:text-green-400 transition-colors"
+                className="tag hover:bg-emerald-500/10 hover:border-emerald-500/30 hover:text-emerald-300 transition-colors"
               >
                 <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
@@ -291,29 +291,29 @@ export default function HostelDetailPage() {
         {/* Ratings Section */}
         {(hostel.roomRating > 0 || hostel.peopleRating > 0 || hostel.googleMapsRating > 0 || hostel.ownerRating > 0) && (
           <div className="card p-5">
-            <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">Ratings</h2>
+          <h2 className="section-title mb-3">Ratings</h2>
             <div className="grid grid-cols-2 gap-3">
               {hostel.roomRating > 0 && (
-                <div className="py-3 px-3 rounded-xl bg-slate-700/30 border border-slate-700/50">
-                  <p className="text-xs text-slate-400 font-medium mb-1">Room</p>
+                <div className="py-3 px-3 rounded-xl bg-ink-800/60 border border-white/[0.06]">
+                  <p className="text-[11px] font-medium text-ink-400 mb-1">Room</p>
                   <StarRatingDisplay value={hostel.roomRating} maxStars={5} />
                 </div>
               )}
               {hostel.peopleRating > 0 && (
-                <div className="py-3 px-3 rounded-xl bg-slate-700/30 border border-slate-700/50">
-                  <p className="text-xs text-slate-400 font-medium mb-1">People/Vibe</p>
+                <div className="py-3 px-3 rounded-xl bg-ink-800/60 border border-white/[0.06]">
+                  <p className="text-[11px] font-medium text-ink-400 mb-1">People/Vibe</p>
                   <StarRatingDisplay value={hostel.peopleRating} maxStars={5} />
                 </div>
               )}
               {hostel.googleMapsRating > 0 && (
-                <div className="py-3 px-3 rounded-xl bg-slate-700/30 border border-slate-700/50">
-                  <p className="text-xs text-slate-400 font-medium mb-1">Google Maps</p>
+                <div className="py-3 px-3 rounded-xl bg-ink-800/60 border border-white/[0.06]">
+                  <p className="text-[11px] font-medium text-ink-400 mb-1">Google Maps</p>
                   <StarRatingDisplay value={hostel.googleMapsRating} maxStars={5} />
                 </div>
               )}
               {hostel.ownerRating > 0 && (
-                <div className="py-3 px-3 rounded-xl bg-slate-700/30 border border-slate-700/50">
-                  <p className="text-xs text-slate-400 font-medium mb-1">Owner</p>
+                <div className="py-3 px-3 rounded-xl bg-ink-800/60 border border-white/[0.06]">
+                  <p className="text-[11px] font-medium text-ink-400 mb-1">Owner</p>
                   <StarRatingDisplay value={hostel.ownerRating} maxStars={3} />
                 </div>
               )}
@@ -324,25 +324,25 @@ export default function HostelDetailPage() {
         {/* Rent Breakdown */}
         {hostel.rents.length > 0 && (
           <div className="card p-5">
-            <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">Rent Options</h2>
+          <h2 className="section-title mb-3">Rent Options</h2>
             <div className="space-y-2">
               {hostel.rents.map((rentItem, index) => (
                 <div
                   key={index}
-                  className="flex items-center justify-between py-2 px-3 rounded-xl bg-slate-700/30 border border-slate-700/50"
+                  className="flex items-center justify-between py-2 px-3 rounded-xl bg-ink-800/60 border border-white/[0.06]"
                 >
-                  <span className="text-sm text-slate-300">
+                  <span className="text-sm text-ink-300">
                     <span className="font-semibold text-white">{rentItem.shares}</span>{' '}
                     {rentItem.shares === 1 ? 'Person' : 'People'} per Room
                     <span className={`ml-2 text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${
                       rentItem.ac
                         ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-300'
-                        : 'bg-slate-600/30 border-slate-600 text-slate-400'
+                        : 'bg-ink-700/50 border-white/[0.08] text-ink-400'
                     }`}>
                       {rentItem.ac ? 'AC' : 'Non-AC'}
                     </span>
                   </span>
-                  <span className="text-sm font-bold text-blue-400">₹{rentItem.rent.toLocaleString()}</span>
+                  <span className="text-sm font-bold text-iris-300">₹{rentItem.rent.toLocaleString()}</span>
                 </div>
               ))}
             </div>
@@ -352,12 +352,12 @@ export default function HostelDetailPage() {
         {/* Food & Electricity Info */}
         {(hostel.foodIncluded !== undefined || hostel.electricityType) && (
           <div className="card p-5">
-            <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">Food & Electricity</h2>
+          <h2 className="section-title mb-3">Food & Electricity</h2>
             <div className="grid grid-cols-2 gap-2">
-              <div className="py-3 px-3 rounded-xl bg-slate-700/30 border border-slate-700/50">
-                <p className="text-xs text-slate-400 font-medium mb-1">Food</p>
+              <div className="py-3 px-3 rounded-xl bg-ink-800/60 border border-white/[0.06]">
+                <p className="text-[11px] font-medium text-ink-400 mb-1">Food</p>
                 {hostel.foodIncluded ? (
-                  <p className="text-sm font-semibold text-green-400 flex items-center gap-1">
+                  <p className="text-sm font-semibold text-emerald-400 flex items-center gap-1">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
@@ -369,10 +369,10 @@ export default function HostelDetailPage() {
                   </p>
                 )}
               </div>
-              <div className="py-3 px-3 rounded-xl bg-slate-700/30 border border-slate-700/50">
-                <p className="text-xs text-slate-400 font-medium mb-1">Electricity</p>
+              <div className="py-3 px-3 rounded-xl bg-ink-800/60 border border-white/[0.06]">
+                <p className="text-[11px] font-medium text-ink-400 mb-1">Electricity</p>
                 {hostel.electricityType === 'included' ? (
-                  <p className="text-sm font-semibold text-green-400 flex items-center gap-1">
+                  <p className="text-sm font-semibold text-emerald-400 flex items-center gap-1">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
@@ -391,18 +391,18 @@ export default function HostelDetailPage() {
         {/* Description */}
         {hostel.description && (
           <div className="card p-5">
-            <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-2">About</h2>
-            <p className="text-sm text-slate-400 leading-relaxed">{hostel.description}</p>
+            <h2 className="section-title mb-2">About</h2>
+            <p className="text-sm text-ink-300 leading-relaxed">{hostel.description}</p>
           </div>
         )}
 
         {/* Amenities */}
         {hostel.amenities.length > 0 && (
           <div className="card p-5">
-            <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">Other</h2>
+          <h2 className="section-title mb-3">Other</h2>
             <div className="flex flex-wrap gap-2">
               {hostel.amenities.map((amenity) => (
-                <span key={amenity} className="tag bg-blue-500/10 border-blue-500/30 text-blue-400">
+                <span key={amenity} className="tag !bg-iris-500/10 !border-iris-500/25 !text-iris-300">
                   <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
@@ -416,32 +416,32 @@ export default function HostelDetailPage() {
         {/* Security Fee & Fines */}
         {(hostel.securityFee > 0 || hostel.otherFines || hostel.lockInPeriod > 0 || hostel.noticePeriod > 0) && (
           <div className="card p-5">
-            <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">Fees & Policies</h2>
+          <h2 className="section-title mb-3">Fees & Policies</h2>
             {hostel.securityFee > 0 && (
-              <div className="flex items-center justify-between py-2 px-3 rounded-xl bg-slate-700/30 border border-slate-700/50 mb-2">
-                <span className="text-sm text-slate-300">Security Fee</span>
-                <span className="text-sm font-bold text-amber-400">₹{hostel.securityFee.toLocaleString()}</span>
+              <div className="flex items-center justify-between py-2 px-3 rounded-xl bg-ink-800/60 border border-white/[0.06] mb-2">
+                <span className="text-sm text-ink-300">Security Fee</span>
+                <span className="text-sm font-bold text-amber-300">₹{hostel.securityFee.toLocaleString()}</span>
               </div>
             )}
             {/* Lock-in & Notice Periods */}
             <div className="grid grid-cols-2 gap-2 mb-2">
               {hostel.lockInPeriod > 0 && (
-                <div className="py-2 px-3 rounded-xl bg-slate-700/30 border border-slate-700/50">
-                  <p className="text-xs text-slate-400 font-medium">Lock-in Period</p>
+                <div className="py-2 px-3 rounded-xl bg-ink-800/60 border border-white/[0.06]">
+                  <p className="text-[11px] font-medium text-ink-400">Lock-in Period</p>
                   <p className="text-sm font-semibold text-white">{hostel.lockInPeriod} {hostel.lockInPeriod === 1 ? 'Month' : 'Months'}</p>
                 </div>
               )}
               {hostel.noticePeriod > 0 && (
-                <div className="py-2 px-3 rounded-xl bg-slate-700/30 border border-slate-700/50">
-                  <p className="text-xs text-slate-400 font-medium">Notice Period</p>
+                <div className="py-2 px-3 rounded-xl bg-ink-800/60 border border-white/[0.06]">
+                  <p className="text-[11px] font-medium text-ink-400">Notice Period</p>
                   <p className="text-sm font-semibold text-white">{hostel.noticePeriod} {hostel.noticePeriod === 1 ? 'Month' : 'Months'}</p>
                 </div>
               )}
             </div>
             {hostel.otherFines && (
-              <div className="py-2 px-3 rounded-xl bg-slate-700/30 border border-slate-700/50">
-                <p className="text-xs text-slate-400 font-medium mb-1">Other Fines & Rules</p>
-                <p className="text-sm text-slate-300">{hostel.otherFines}</p>
+              <div className="py-2 px-3 rounded-xl bg-ink-800/60 border border-white/[0.06]">
+                <p className="text-[11px] font-medium text-ink-400 mb-1">Other Fines & Rules</p>
+                <p className="text-sm text-ink-200">{hostel.otherFines}</p>
               </div>
             )}
           </div>
@@ -450,10 +450,10 @@ export default function HostelDetailPage() {
         {/* Map */}
         <div className="card p-5">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">Location</h2>
+            <h2 className="section-title">Location</h2>
             <button
               onClick={openInGoogleMaps}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-green-500/20 text-green-400 border border-green-500/30 rounded-xl hover:bg-green-500/30 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-emerald-500/10 text-emerald-300 border border-emerald-500/25 rounded-xl hover:bg-emerald-500/20 transition-colors active:scale-95"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -461,7 +461,7 @@ export default function HostelDetailPage() {
               Open in Google Maps
             </button>
           </div>
-          <div className="h-48 rounded-xl overflow-hidden border border-slate-700">
+          <div className="h-48 rounded-2xl overflow-hidden border border-white/[0.08]">
             <MapContainer
               center={[hostel.location.lat, hostel.location.lng]}
               zoom={15}
@@ -514,7 +514,7 @@ export default function HostelDetailPage() {
         </div>
 
         {/* Timestamps */}
-        <p className="text-xs text-slate-600 text-center pt-2">
+        <p className="text-[11px] text-ink-600 text-center pt-2">
           Added {new Date(hostel.createdAt).toLocaleDateString()}
           {hostel.createdAt !== hostel.updatedAt && ` · Updated ${new Date(hostel.updatedAt).toLocaleDateString()}`}
         </p>
@@ -522,7 +522,7 @@ export default function HostelDetailPage() {
 
       {/* Full screen photo viewer */}
       {showFullScreen && hostel.photos.length > 0 && (
-        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex flex-col">
+        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex flex-col overlay-in">
           {/* Top bar */}
           <div className="flex items-center justify-between px-4 py-3">
             <button
@@ -639,15 +639,15 @@ export default function HostelDetailPage() {
 
       {/* Delete confirmation modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl p-6 max-w-sm w-full">
-            <div className="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overlay-in">
+          <div className="bg-ink-850 rounded-2xl border border-white/[0.08] shadow-2xl shadow-black/60 p-6 max-w-sm w-full pop-in">
+            <div className="w-12 h-12 bg-rose-500/15 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-6 h-6 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
               </svg>
             </div>
             <h3 className="text-lg font-semibold text-white text-center mb-2">Delete Hostel?</h3>
-            <p className="text-sm text-slate-400 text-center mb-6">
+            <p className="text-sm text-ink-400 text-center mb-6">
               Are you sure you want to delete "{hostel.name}"? This action cannot be undone.
             </p>
             <div className="flex gap-3">
