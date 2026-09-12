@@ -168,9 +168,9 @@ The migration runs on **both** `getAllHostels()` (bulk list) and `getHostel()` (
 - Sticky header with search bar + filter toggle button
 - Filter panel includes:
   - **Rent Range**: Min/max fields (compares against cheapest rent from rents array)
-  - **Max Room Sharing**: 1–4 share buttons
+  - **Room Sharing**: Multi-select chips for share counts 1–5 (from `SHARE_OPTIONS`) — a hostel matches if it offers **at least one** rent option whose share count is selected. Empty selection = no filtering.
   - **Minimum Room Rating**: 0–5 star filters (toggle on/off, uses `roomRating`)
-  - **Other**: Multi-select from AMENITIES_LIST (renamed from "Amenities"; AC not filterable here)
+  - **Other**: Multi-select from AMENITIES_LIST (renamed from "Amenities")
 - Active filter count badge on the filter icon
 - "Clear all filters" link when filters active
 - Empty state differentiates "no hostels" vs "no matches" — shows clear filters or add hostel button
@@ -310,4 +310,4 @@ npx cap open ios
 3. **Leaflet marker icons**: Loaded from CDN to avoid Vite bundling issues.
 4. **PWA install & Geolocation require HTTPS**: Use ngrok or deploy to Vercel/Netlify. (Geolocation also needs HTTPS or localhost.)
 5. **Touch events**: Swipe gestures use React touch event handlers. `preventDefault()` may not work in passive event listeners on some browsers (minor UX — swipe works but page may scroll slightly).
-6. **No AC filter**: Filters panel filters on "Other" features only; AC is per-rent-row so it isn't a simple hostel-level filter target yet.
+6. **AC filter scope**: The Room Type filter matches hostels that offer *at least one* AC (or Non-AC) option — it doesn't filter individual rent rows in the results display.

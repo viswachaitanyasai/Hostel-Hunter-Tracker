@@ -2,8 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import HostelCard from '../components/HostelCard';
 import { listHostels, exportHostels, triggerDownload, parseImportFile, importHostels } from '../storage';
-import { AMENITIES_LIST } from '../types';
+import { AMENITIES_LIST, SHARE_OPTIONS } from '../types';
 import type { Hostel } from '../types';
+
+type AcFilter = '' | 'ac' | 'nonac';
 
 interface Filters {
   searchQuery: string;
@@ -11,7 +13,8 @@ interface Filters {
   maxRent: string;
   selectedAmenities: string[];
   minRating: number;
-  maxShares: string;
+  selectedShares: number[];
+  acFilter: AcFilter;
 }
 
 const defaultFilters: Filters = {
@@ -20,7 +23,8 @@ const defaultFilters: Filters = {
   maxRent: '',
   selectedAmenities: [],
   minRating: 0,
-  maxShares: '',
+  selectedShares: [],
+  acFilter: '',
 };
 
 export default function HomePage() {
@@ -60,11 +64,20 @@ export default function HomePage() {
     }));
   };
 
+  const toggleShareFilter = (n: number) => {
+    setFilters((prev) => ({
+      ...prev,
+      selectedShares: prev.selectedShares.includes(n)
+        ? prev.selectedShares.filter((s) => s !== n)
+        : [...prev.selectedShares, n],
+    }));
+  };
+
   const clearFilters = () => {
     setFilters(defaultFilters);
   };
 
-  const hasActiveFilters = filters.minRent || filters.maxRent || filters.selectedAmenities.length > 0 || filters.minRating > 0 || filters.maxShares;
+  const hasActiveFilters = filters.minRent || filters.maxRent || filters.selectedAmenities.length > 0 || filters.minRating > 0 || filters.selectedShares.length > 0 || filters.acFilter;
 
   const filteredHostels = hostels.filter((h) => {
     const q = filters.searchQuery.toLowerCase();
@@ -92,11 +105,15 @@ export default function HomePage() {
     // Rating - use roomRating as the primary filter
     if (filters.minRating > 0 && h.roomRating < filters.minRating) return false;
 
-    // Max shares (hostel must have an option with this many or fewer shares)
-    if (filters.maxShares) {
-      const hasSuitableShare = h.rents.some((r) => r.shares <= Number(filters.maxShares));
-      if (!hasSuitableShare) return false;
+    // Room sharing (hostel must offer at least one of the selected share counts)
+    if (filters.selectedShares.length > 0) {
+      const hasMatchingShare = h.rents.some((r) => filters.selectedShares.includes(r.shares));
+      if (!hasMatchingShare) return false;
     }
+
+    // AC / Non-AC (hostel must have at least one matching rent option)
+    if (filters.acFilter === 'ac' && !h.rents.some((r) => r.ac)) return false;
+    if (filters.acFilter === 'nonac' && !h.rents.some((r) => !r.ac)) return false;
 
     return true;
   });
@@ -105,7 +122,8 @@ export default function HomePage() {
     filters.minRent || filters.maxRent,
     filters.selectedAmenities.length > 0,
     filters.minRating > 0,
-    filters.maxShares,
+    filters.selectedShares.length > 0,
+    filters.acFilter,
   ].filter(Boolean).length;
 
   return (
@@ -269,15 +287,15 @@ export default function HomePage() {
             {/* Room Sharing */}
             <div>
               <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2 block">
-                Max Room Sharing
+                Room Sharing
               </label>
-              <div className="flex gap-2">
-                {[1, 2, 3, 4].map((n) => (
+              <div className="flex flex-wrap gap-2">
+                {SHARE_OPTIONS.map((n) => (
                   <button
                     key={n}
-                    onClick={() => setFilters((prev) => ({ ...prev, maxShares: prev.maxShares === String(n) ? '' : String(n) }))}
-                    className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-all ${
-                      filters.maxShares === String(n)
+                    onClick={() => toggleShareFilter(n)}
+                    className={`flex-1 min-w-[64px] py-2 rounded-xl text-sm font-medium border transition-all ${
+                      filters.selectedShares.includes(n)
                         ? 'bg-blue-500/20 border-blue-500 text-blue-400'
                         : 'bg-slate-700/50 border-slate-600 text-slate-400 hover:border-slate-500'
                     }`}
@@ -286,6 +304,11 @@ export default function HomePage() {
                   </button>
                 ))}
               </div>
+              <p className="text-[10px] text-slate-500 mt-1.5">
+                {filters.selectedShares.length > 0
+                  ? `Showing hostels with ${filters.selectedShares.slice().sort((a, b) => a - b).join(', ')} sharing options`
+                  : 'Tap to select one or more sharing types'}
+              </p>
             </div>
 
             {/* Room Rating filter */}
@@ -308,6 +331,51 @@ export default function HomePage() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* AC / Non-AC Room Type */}
+            <div>
+              <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2 block">
+                Room Type
+              </label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setFilters((prev) => ({ ...prev, acFilter: '' }))}
+                  className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-all ${
+                    filters.acFilter === ''
+                      ? 'bg-blue-500/20 border-blue-500 text-blue-400'
+                      : 'bg-slate-700/50 border-slate-600 text-slate-400 hover:border-slate-500'
+                  }`}
+                >
+                  Any
+                </button>
+                <button
+                  onClick={() => setFilters((prev) => ({ ...prev, acFilter: prev.acFilter === 'ac' ? '' : 'ac' }))}
+                  className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-all flex items-center justify-center gap-1.5 ${
+                    filters.acFilter === 'ac'
+                      ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300'
+                      : 'bg-slate-700/50 border-slate-600 text-slate-400 hover:border-slate-500'
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.36 6.36l-.7-.7M6.34 6.34l-.7-.7m12.72 0l-.7.7M6.34 17.66l-.7.7M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                  AC
+                </button>
+                <button
+                  onClick={() => setFilters((prev) => ({ ...prev, acFilter: prev.acFilter === 'nonac' ? '' : 'nonac' }))}
+                  className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-all ${
+                    filters.acFilter === 'nonac'
+                      ? 'bg-slate-400/20 border-slate-400 text-slate-200'
+                      : 'bg-slate-700/50 border-slate-600 text-slate-400 hover:border-slate-500'
+                  }`}
+                >
+                  Non-AC
+                </button>
+              </div>
+              <p className="text-[10px] text-slate-500 mt-1.5">
+                Matches hostels offering at least one {filters.acFilter === 'ac' ? 'AC' : filters.acFilter === 'nonac' ? 'Non-AC' : ''} room option
+              </p>
             </div>
 
             {/* Other */}
