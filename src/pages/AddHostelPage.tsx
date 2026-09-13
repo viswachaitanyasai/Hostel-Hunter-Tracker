@@ -277,6 +277,17 @@ export default function AddHostelPage() {
     setRents((prev) => prev.filter((_, i) => i !== index));
   };
 
+  // Move a rent row up/down so the user controls the display order everywhere
+  const moveRent = (fromIndex: number, toIndex: number) => {
+    if (toIndex < 0 || toIndex >= rents.length) return;
+    setRents((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -354,7 +365,7 @@ export default function AddHostelPage() {
     <div className="min-h-screen">
       {/* Header */}
       <header className="sticky top-0 z-40 bg-ink-950/80 backdrop-blur-xl border-b border-white/[0.06]">
-        <div className="max-w-lg mx-auto px-4 py-4 flex items-center gap-3">
+        <div className="max-w-lg lg:max-w-4xl mx-auto px-4 py-4 flex items-center gap-3">
           <button
             onClick={() => navigate(-1)}
             className="icon-btn"
@@ -368,11 +379,11 @@ export default function AddHostelPage() {
         </div>
       </header>
 
-      <div className="max-w-lg mx-auto px-4 pt-4 pb-10">
-        <form onSubmit={handleSubmit} className="space-y-6 stagger-children">
-          {/* Error */}
+      <div className="max-w-lg lg:max-w-4xl mx-auto px-4 pt-4 pb-10">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:items-start stagger-children">
+          {/* Error — spans both columns on desktop */}
           {error && (
-            <div className="p-3.5 bg-rose-500/10 border border-rose-500/25 rounded-2xl flex items-start gap-2.5">
+            <div className="lg:col-span-2 p-3.5 bg-rose-500/10 border border-rose-500/25 rounded-2xl flex items-start gap-2.5">
               <svg className="w-5 h-5 text-rose-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -511,6 +522,33 @@ export default function AddHostelPage() {
                         placeholder="Rent"
                         className="w-full bg-ink-800/60 border border-white/[0.08] rounded-xl pl-8 pr-3 py-2.5 text-white text-sm placeholder-ink-400 focus:outline-none focus:ring-2 focus:ring-iris-500/50 focus:border-iris-500/60 transition-all"
                       />
+                    </div>
+                    {/* Reorder: move row up */}
+                    <div className="flex flex-col flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => moveRent(index, index - 1)}
+                        disabled={index === 0}
+                        className="p-1 text-ink-500 hover:text-iris-300 disabled:opacity-25 disabled:hover:text-ink-500 transition-colors"
+                        aria-label="Move this rent option up"
+                        title="Move up"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 15l7-7 7 7" />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveRent(index, index + 1)}
+                        disabled={index === rents.length - 1}
+                        className="p-1 text-ink-500 hover:text-iris-300 disabled:opacity-25 disabled:hover:text-ink-500 transition-colors"
+                        aria-label="Move this rent option down"
+                        title="Move down"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
                     </div>
                     {/* Remove row */}
                     <button
@@ -741,7 +779,8 @@ export default function AddHostelPage() {
             </div>
           </div>
 
-          {/* 15. Location */}
+          {/* 15. Location — spans full width on desktop */}
+          <div className="lg:col-span-2 min-w-0">
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="input-label mb-0">Location *</label>
@@ -789,7 +828,7 @@ export default function AddHostelPage() {
               <p className="text-xs text-rose-400 mb-2">{gpsError}</p>
             )}
 
-            <div className="h-64 rounded-2xl overflow-hidden border border-white/[0.08] mb-2 shadow-lg shadow-black/30">
+            <div className="h-64 lg:h-96 rounded-2xl overflow-hidden border border-white/[0.08] mb-2 shadow-lg shadow-black/30">
               <MapContainer
                 center={[hostelLat || 20.5937, hostelLng || 78.9629]}
                 zoom={5}
@@ -830,6 +869,7 @@ export default function AddHostelPage() {
               placeholder="Enter address..."
               className="input-field mt-2"
             />
+          </div>
           </div>
 
           {/* 16. Photos (last) */}
@@ -955,7 +995,7 @@ export default function AddHostelPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="btn-primary w-full flex items-center justify-center gap-2 text-base"
+            className="btn-primary w-full lg:col-span-2 flex items-center justify-center gap-2 text-base"
           >
             {submitting ? (
               <>

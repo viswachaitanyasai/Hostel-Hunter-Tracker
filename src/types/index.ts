@@ -72,7 +72,6 @@ export interface HostelFormData {
 export const SHARE_OPTIONS = [1, 2, 3, 4, 5] as const;
 
 export const AMENITIES_LIST = [
-  'Food',
   'Wi-Fi',
   'Laundry',
   'Power Backup',

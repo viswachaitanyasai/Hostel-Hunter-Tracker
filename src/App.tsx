@@ -5,6 +5,7 @@ import HomePage from './pages/HomePage';
 import AddHostelPage from './pages/AddHostelPage';
 import HostelDetailPage from './pages/HostelDetailPage';
 import MapPage from './pages/MapPage';
+import UpdateToast from './components/UpdateToast';
 
 /**
  * Keyed by pathname so the enter animation replays on every navigation.
@@ -24,6 +25,8 @@ function PageShell({ children, fade = false }: { children: ReactNode; fade?: boo
 export default function App() {
   return (
     <BrowserRouter>
+      {/* Global PWA update prompt (new version available / offline ready) */}
+      <UpdateToast />
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<HomePage />} />

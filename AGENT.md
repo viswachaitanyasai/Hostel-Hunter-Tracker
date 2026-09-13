@@ -28,6 +28,7 @@ hostel_freebuff/
 ├── README.md                 # Project README (user-facing)
 ├── src/
 │   ├── main.tsx              # Entry point, imports Leaflet CSS
+│   ├── vite-env.d.ts         # Ambient types incl. virtual:pwa-register/react module
 │   ├── index.css             # Tailwind directives + custom dark theme + Leaflet overrides
 │   ├── App.tsx               # React Router setup (BrowserRouter)
 │   ├── types/
@@ -38,8 +39,9 @@ hostel_freebuff/
 │   ├── hooks/
 │   │   └── useGeolocation.ts # useGeolocation() → { lat, lng, timestamp, loading, error, getCurrentPosition, resetLocation } (30s timeout, fresh fixes)
 │   ├── components/
-│   │   ├── Layout.tsx        # Bottom nav bar (Home / Map icons — Track tab removed) with safe-area padding
-│   │   └── HostelCard.tsx    # Card with photo, rent badge, room rating badge, location, sharing options (incl. AC flags), feature tags
+│   │   ├── Layout.tsx        # Responsive chrome: left sidebar (lg+) / floating bottom nav (mobile) — Home / Map
+│   │   ├── HostelCard.tsx    # Card with photo, rent badge, room rating badge, location, sharing options (incl. AC flags), feature tags
+│   │   └── UpdateToast.tsx   # PWA update prompt ("new version available" → Refresh) + offline-ready toast
 │   └── pages/
 │       ├── HomePage.tsx      # Header with search, filter panel, 2-col grid, loading skeletons, empty state, FAB, export menu (Export Selected / Export All / Import JSON)
 │       ├── AddHostelPage.tsx # Full form (add + edit via /edit/:id): Camera + Gallery inputs with drag-to-reorder photos, GPS detect/clear, satellite map picker (tap pin to remove), share buttons 1–5 with per-row AC/Non-AC toggle, "Other" toggles (incl. New Building/Hot Water/Water Purifier), star ratings, Indian comma formatting on money inputs
@@ -108,12 +110,12 @@ interface Hostel {
 SHARE_OPTIONS = [1, 2, 3, 4, 5]   // share-count buttons in the rent section
 ```
 
-"Other" features list (renamed from "Amenities"; AC removed — it is now per-rent-row):
+"Other" features list (renamed from "Amenities"; AC and Food removed — AC is per-rent-row, Food is a dedicated hostel-level field):
 ```
-Food, Wi-Fi, Laundry, Power Backup, Parking, Gym, Kitchen Access, TV, Fridge,
+Wi-Fi, Laundry, Power Backup, Parking, Gym, Kitchen Access, TV, Fridge,
 Sufficient Sockets, Washing Machine, Balcony, New Building, Hot Water, Water Purifier
 ```
-*(Note: 'New Building', 'Hot Water', and 'Water Purifier' were added as simple toggle chips. 'AC' was removed from this list — AC availability is now a boolean on each HostelRent row so a hostel can price AC and Non-AC rooms of the same share count separately.)*
+*(Note: 'New Building', 'Hot Water', and 'Water Purifier' were added as simple toggle chips. 'AC' was removed from this list — AC availability is now a boolean on each HostelRent row so a hostel can price AC and Non-AC rooms of the same share count separately. 'Food' was removed — food is handled by the dedicated Food Included/charges fields.)*
 
 ### Migration (indexeddb.ts — DB_VERSION 3)
 
@@ -129,7 +131,7 @@ All data reads go through `migrateHostel()` which handles:
 7. Missing `foodIncluded`, `foodCharges`, `electricityType`, `electricityAmount` → defaults to `true`, 0, `'included'`, 0 (values extracted from the first legacy per-rent row if present)
 8. Legacy `hasAC: true` → sets `ac: true` on the **first rent row** (NOT added to amenities anymore), deletes `hasAC`
 9. **`'AC'` is stripped from the amenities array** on every read (AC is per-rent-row now)
-10. Legacy 'Electricity Included' in amenities → removed (handled via dedicated fields)
+10. **Legacy 'Electricity Included' and 'Food' in amenities → removed** on every read (electricity and food are handled via dedicated fields)
 11. **New specific ratings**: Old `rating` → mapped to `roomRating` and `peopleRating`; `ownerRating` proportionally scaled (3/5); new fields default to 0
 12. **Legacy check fields → amenities**: Old `sufficientSockets: true` → pushes 'Sufficient Sockets' into amenities; same for `hasWashingMachine` → 'Washing Machine'; `hasBalcony` → 'Balcony'. Old boolean fields are deleted after migration.
 
@@ -156,6 +158,8 @@ The migration runs on **both** `getAllHostels()` (bulk list) and `getHostel()` (
 | `/map` | MapPage (satellite/street map view) | None (fullscreen) |
 
 *(The `/track` route and TrackPage were removed along with the entire tracking feature.)*
+
+`App.tsx` also mounts `<UpdateToast />` globally (outside all routes) so the PWA update prompt is reachable from every page.
 
 ## Key Features & Design Decisions
 
@@ -185,7 +189,7 @@ The migration runs on **both** `getAllHostels()` (bulk list) and `getHostel()` (
   - **No default row** — the form starts with zero rent rows
   - Five share-count buttons **1 / 2 / 3 / 4 / 5** (`SHARE_OPTIONS` from types). Tapping a button appends a rent row for that share count.
   - **Tapping the same share number again adds ANOTHER row for it** — this is how you add an AC option alongside a Non-AC one for the same share count (e.g. tap 3 → Non-AC row, tap 3 again → second row, toggle it to AC)
-  - Each row: shares badge + **AC / Non-AC toggle button** (cyan when AC) + ₹ rent input (Indian comma formatting) + remove (×) button. Any row can be removed, including down to zero rows.
+  - Each row: shares badge + **AC / Non-AC toggle button** (cyan when AC) + ₹ rent input (Indian comma formatting) + **up/down reorder arrows** + remove (×) button. Any row can be removed, including down to zero rows. Row order is user-controlled (via the arrows) and is preserved everywhere (detail page, cards).
   - The share buttons show a highlighted (blue) state when at least one row with that share count exists.
 - **Food & Electricity** (common for all sharing types):
   - **Food**: Toggle buttons "Included" (green) / "Not Included" (red). If not included, shows ₹ input for monthly food charges.
@@ -238,11 +242,15 @@ The migration runs on **both** `getAllHostels()` (bulk list) and `getHostel()` (
 - Details: **Name with type badge** (blue "Boys" or purple "Co-living"), address with location icon, **sharing options summary line including `(AC)` markers** per option (e.g. `3 sharing (AC) @ ₹8,000, 3 sharing @ ₹6,500`), feature tags (max 4 + "+N" overflow)
 - Click navigates to `/hostel/:id`
 
-### Layout — Bottom Nav
-- **Two tabs**: Home (house icon) and Map (map icon) — the Track tab was removed
-- Active tab: blue highlight + scale effect
-- Safe-area padding for notched phones (`safe-area-bottom`)
-- Content has `pb-20` to avoid bottom nav overlap
+### Layout — Responsive Chrome
+- **Mobile (< lg)**: floating glass bottom nav — unchanged. **Two tabs**: Home (house icon) and Map (map icon) — the Track tab was removed. Active tab: blue highlight + scale effect. Safe-area padding for notched phones. Content has bottom padding to avoid nav overlap.
+- **Desktop (lg and up)**: persistent **left sidebar** (`aside`, fixed, `w-60`) with brand block, Home/Map nav links (active = iris pill), and a pinned **Add Hostel** primary button at the bottom. Main content is shifted via `lg:pl-60` on the wrapper. The mobile FAB is hidden on `lg:` in favor of the sidebar button.
+
+### Desktop Responsiveness (breakpoints)
+- **HomePage**: header/filters/content widen to `lg:max-w-5xl`; grid `grid-cols-2 → md:3 → lg:4`; filters panel goes 2-column on `lg:`; header logo hidden on `lg:` (sidebar shows the brand).
+- **AddHostelPage**: container `lg:max-w-4xl`; the whole form is a **2-column grid on `lg:`** (`grid-cols-1 lg:grid-cols-2`, error + Location + Photos + Submit span both columns via `lg:col-span-2`); map is `lg:h-96`.
+- **HostelDetailPage**: content `lg:max-w-4xl`; hero photo `lg:h-[26rem]`; rent options 2-col on `sm:`; mini-map `lg:h-72`.
+- **MapPage**: header container full-width on `lg:`; popup cards widen to `lg:min-w-[260px]`.
 
 ## Design System — "Ink & Iris"
 
@@ -303,9 +311,10 @@ Defined in `src/index.css` `@layer components`; all decorative animation is disa
 11. **Policy & Agreements**: Lock-in period and notice period in months, displayed in Fees & Policies.
 12. **Camera + Gallery**: Two separate file inputs; camera takes one photo per tap.
 13. **Indian number formatting** on all money inputs via `Intl.NumberFormat('en-IN')` + `stripNonDigits()`.
-14. **Full-screen photo viewer** with swipe support, close button, counter, dots, desktop arrows, download.
+14. **Full-screen photo viewer** with swipe support, close button, counter, desktop arrows, download.
 15. **PWA**: Installs on mobile home screen; works offline via Workbox service worker; map tiles cached CacheFirst (200 entries, 30 days).
 16. **Dark theme, one source of truth**: The entire look lives in `src/index.css` ("Ink & Iris" design system — see section above). Changing the palette/theme = editing tokens there; pages only consume component classes and ink/iris tokens.
+17. **PWA update flow without data loss** (`registerType: 'prompt'` + `UpdateToast.tsx`): deployed updates are never applied silently. The new service worker downloads and *waits*; the toast shows "A new version is available — Refresh to update, your saved hostels are safe". Clicking Refresh posts `SKIP_WAITING` to the SW, activates it and reloads. **IndexedDB (`hostels`) is never touched by this flow** — only hashed app-shell files are replaced (outdated precaches are cleaned via `cleanupOutdatedCaches`). Hostel data loss only ever came from manually clearing "site data" in the browser, which this flow makes unnecessary. A periodic `registration.update()` (hourly, from `onRegisteredSW`) picks up new deploys on long-lived sessions.
 
 ## Scripts
 

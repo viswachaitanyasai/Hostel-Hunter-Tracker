@@ -130,20 +130,20 @@ export default function HomePage() {
     <div className="min-h-screen">
       {/* Header */}
       <header className="sticky top-0 z-40 bg-ink-950/80 backdrop-blur-xl border-b border-white/[0.06]">
-        <div className="max-w-lg mx-auto px-4 py-4">
+        <div className="max-w-lg lg:max-w-5xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between mb-3.5">
             <div className="flex items-center gap-2.5">
-              {/* Logo mark */}
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-iris-500 to-iris-600 flex items-center justify-center shadow-lg shadow-iris-500/30">
+              {/* Logo mark (hidden on lg — the sidebar shows the brand) */}
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-iris-500 to-iris-600 flex items-center justify-center shadow-lg shadow-iris-500/30 lg:hidden">
                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                 </svg>
               </div>
               <div>
-                <h1 className="text-lg font-bold text-white tracking-tight leading-none">
+                <h1 className="text-lg font-bold text-white tracking-tight leading-none lg:text-xl">
                   Hostel<span className="text-iris-400">Finder</span>
                 </h1>
-                <p className="text-[11px] text-ink-400 mt-1">Find your perfect stay</p>
+                <p className="text-[11px] text-ink-400 mt-1 lg:hidden">Find your perfect stay</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -263,8 +263,8 @@ export default function HomePage() {
 
       {/* Filters Panel */}
       {showFilters && (
-        <div className="sticky top-[136px] z-30 px-4 max-w-lg mx-auto pt-3">
-          <div className="panel backdrop-blur-xl p-4 space-y-5 max-h-[52vh] overflow-y-auto stagger-children">
+        <div className="sticky top-[136px] z-30 px-4 max-w-lg lg:max-w-5xl mx-auto pt-3">
+          <div className="panel backdrop-blur-xl p-4 space-y-5 max-h-[52vh] lg:max-h-[60vh] overflow-y-auto stagger-children">
             <div className="flex items-center justify-between">
               <h2 className="section-title">Filters</h2>
               {hasActiveFilters && (
@@ -277,6 +277,8 @@ export default function HomePage() {
               )}
             </div>
 
+            {/* Two-column filter layout on desktop */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-5">
             {/* Rent Range */}
             <div>
               <label className="text-[11px] font-semibold text-ink-300 uppercase tracking-[0.12em] mb-2 block">
@@ -403,15 +405,16 @@ export default function HomePage() {
                 ))}
               </div>
             </div>
+            </div>
           </div>
         </div>
       )}
 
       {/* Content */}
-      <div className="max-w-lg mx-auto px-4 py-4">
+      <div className="max-w-lg lg:max-w-5xl mx-auto px-4 py-4">
         {loading ? (
-          <div className="grid grid-cols-2 gap-3 stagger-children">
-            {[1, 2, 3, 4].map((i) => (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4 stagger-children">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
               <div key={i} className="card animate-pulse">
                 <div className="aspect-[4/3] bg-ink-800" />
                 <div className="p-3.5 space-y-2">
@@ -489,7 +492,7 @@ export default function HomePage() {
                 </div>
               </div>
             )}
-            <div className="grid grid-cols-2 gap-3 stagger-children">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4 stagger-children">
               {filteredHostels.map((hostel) => (
                 selectionMode ? (
                   <div key={hostel.id} className="relative">
@@ -575,11 +578,11 @@ export default function HomePage() {
         }}
       />
 
-      {/* Quick add button when hostels exist */}
+      {/* Quick add button when hostels exist (mobile + tablet; desktop uses the sidebar button) */}
       {!loading && filteredHostels.length > 0 && (
         <button
           onClick={() => navigate('/add')}
-          className="fixed bottom-24 right-4 z-50 w-14 h-14 rounded-2xl bg-gradient-to-b from-iris-500 to-iris-600 text-white shadow-2xl shadow-iris-500/40 flex items-center justify-center transition-all duration-200 active:scale-90 hover:scale-105 hover:from-iris-400 hover:to-iris-500"
+          className="lg:hidden fixed bottom-24 right-4 z-50 w-14 h-14 rounded-2xl bg-gradient-to-b from-iris-500 to-iris-600 text-white shadow-2xl shadow-iris-500/40 flex items-center justify-center transition-all duration-200 active:scale-90 hover:scale-105 hover:from-iris-400 hover:to-iris-500"
           aria-label="Add hostel"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

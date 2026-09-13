@@ -8,7 +8,9 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt' = new service worker downloads and WAITS; the app shows an
+      // "Update available" toast (UpdateToast.tsx) and applies it on click.
+      registerType: 'prompt',
       includeAssets: ['favicon.svg', 'icons/*.png'],
       manifest: {
         name: 'Hostel Finder',
@@ -27,6 +29,12 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,json}'],
+        // index.html is precached with a content revision: every deploy that
+        // changes it produces a new sw.js, so the browser detects the update
+        // on the next visit and UpdateToast offers a one-tap Refresh.
+        // No manual "clear site data" ever needed (which is what used to wipe
+        // the IndexedDB hostel data).
+        navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/[acdlmt]\.tile\.openstreetmap\.org\/.*/i,

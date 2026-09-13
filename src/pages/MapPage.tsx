@@ -24,7 +24,7 @@ function HostelPopupContent({ hostel, onViewDetails }: { hostel: Hostel; onViewD
   const cheapestRent = hostel.rents.length > 0 ? Math.min(...hostel.rents.map((r) => r.rent)) : 0;
 
   return (
-    <div className="min-w-[200px]">
+    <div className="min-w-[200px] lg:min-w-[260px]">
       {hostel.photos.length > 0 && (
         <img
           src={hostel.photos[0]}
@@ -117,7 +117,7 @@ export default function MapPage() {
     <div className="h-dvh w-full flex flex-col bg-ink-950">
       {/* Header */}
       <header className="flex-shrink-0 z-[1000] bg-ink-950/85 backdrop-blur-xl border-b border-white/[0.06]">
-        <div className="max-w-lg mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="max-w-lg lg:max-w-none lg:px-6 mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate('/')}

@@ -96,6 +96,8 @@ function migrateHostel(h: Hostel): Hostel {
   hostel.amenities = hostel.amenities.filter((a: string) => a !== 'AC');
   // Migrate: remove 'Electricity Included' from amenities (now handled as dedicated fields)
   hostel.amenities = hostel.amenities.filter((a: string) => a !== 'Electricity Included');
+  // Migrate: remove 'Food' from amenities (Food is a dedicated hostel-level field, not a feature chip)
+  hostel.amenities = hostel.amenities.filter((a: string) => a !== 'Food');
   // Migrate food/electricity from per-rent level (old schema) to hostel level
   if (hostel.foodIncluded === undefined) {
     // Check if any rent row has food data (legacy per-rent schema)

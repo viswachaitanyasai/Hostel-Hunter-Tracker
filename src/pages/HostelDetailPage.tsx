@@ -114,7 +114,7 @@ export default function HostelDetailPage() {
       <header className="relative">
         {/* Photo gallery with swipe */}
         <div
-          className="relative h-72 bg-ink-850 select-none group"
+          className="relative h-72 lg:h-[26rem] bg-ink-850 select-none group"
           onTouchStart={(e) => {
             touchRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY };
           }}
@@ -235,7 +235,7 @@ export default function HostelDetailPage() {
       </header>
 
       {/* Content */}
-      <div className="max-w-lg mx-auto px-4 -mt-6 relative z-10 space-y-4 stagger-children">
+      <div className="max-w-lg lg:max-w-4xl mx-auto px-4 -mt-6 relative z-10 space-y-4 stagger-children">
         {/* Name & Rent */}
         <div className="card p-5">
           <div className="flex items-start justify-between gap-3">
@@ -259,7 +259,7 @@ export default function HostelDetailPage() {
               </div>
             </div>
             <div className="text-right flex-shrink-0">
-              <p className="text-2xl font-bold bg-gradient-to-r from-iris-300 to-sky-300 bg-clip-text text-transparent">₹{cheapestRent.toLocaleString()}</p>
+              <p className="text-2xl lg:text-3xl font-bold bg-gradient-to-r from-iris-300 to-sky-300 bg-clip-text text-transparent">₹{cheapestRent.toLocaleString()}</p>
               <p className="text-[11px] text-ink-500">starting price</p>
             </div>
           </div>
@@ -325,7 +325,7 @@ export default function HostelDetailPage() {
         {hostel.rents.length > 0 && (
           <div className="card p-5">
           <h2 className="section-title mb-3">Rent Options</h2>
-            <div className="space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {hostel.rents.map((rentItem, index) => (
                 <div
                   key={index}
@@ -461,7 +461,7 @@ export default function HostelDetailPage() {
               Open in Google Maps
             </button>
           </div>
-          <div className="h-48 rounded-2xl overflow-hidden border border-white/[0.08]">
+          <div className="h-48 lg:h-72 rounded-2xl overflow-hidden border border-white/[0.08]">
             <MapContainer
               center={[hostel.location.lat, hostel.location.lng]}
               zoom={15}
