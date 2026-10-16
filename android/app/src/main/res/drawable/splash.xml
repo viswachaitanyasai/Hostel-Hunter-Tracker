@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Launch splash: the brand plate with the app icon centred on it, replacing
+    Capacitor's default white/logo bitmap. Resolution independent, so it scales
+    to any screen without stretching.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/ic_launcher_background" />
+    <item
+        android:width="150dp"
+        android:height="150dp"
+        android:gravity="center"
+        android:drawable="@mipmap/ic_launcher_foreground" />
+</layer-list>

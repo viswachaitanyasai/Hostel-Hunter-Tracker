@@ -16,8 +16,8 @@ A mobile-first Progressive Web App (PWA) for finding and managing hostels. Built
 | Maps | Leaflet 1.9 + react-leaflet 5 (ESRI World Imagery satellite tiles + World Boundaries and Places label overlay, free, no API key) |
 | Storage | IndexedDB (each hostel = 1 record, sorted by newest) |
 | PWA | vite-plugin-pwa (Workbox, service worker with offline tile caching) |
-| Native Bridge | Capacitor 8 (initialized, ready for Android/iOS builds) |
-| Geolocation | Browser Geolocation API (with Capacitor fallback) |
+| Native Bridge | Capacitor 8 — **Android platform added and configured** (`android/`); iOS not added yet |
+| Geolocation | Browser Geolocation API on the web; `@capacitor/geolocation` (native provider) inside the Android app |
 | IDs | UUID v4 |
 
 ## Project Structure
@@ -30,14 +30,17 @@ hostel_freebuff/
 │   ├── main.tsx              # Entry point, imports Leaflet CSS
 │   ├── vite-env.d.ts         # Ambient types incl. virtual:pwa-register/react module
 │   ├── index.css             # Tailwind directives + custom dark theme + Leaflet overrides
-│   ├── App.tsx               # React Router setup (BrowserRouter)
+│   ├── App.tsx               # React Router setup (BrowserRouter) + mounts the Android back-button bridge
 │   ├── types/
 │   │   └── index.ts          # Hostel, HostelRent (with per-rent `ac`), HostelFormData interfaces + SHARE_OPTIONS + AMENITIES_LIST
 │   ├── storage/
 │   │   ├── index.ts          # Storage abstraction: listHostels, getHostelById, createHostel, updateHostel, removeHostel, fileToBase64, exportHostels, triggerDownload, parseImportFile, importHostels
 │   │   └── indexeddb.ts      # IndexedDB CRUD for hostels (v3 DB), migrateHostel() for backward compatibility
 │   ├── hooks/
-│   │   └── useGeolocation.ts # useGeolocation() → { lat, lng, timestamp, loading, error, getCurrentPosition, resetLocation } (30s timeout, fresh fixes)
+│   │   ├── useGeolocation.ts # useGeolocation() → { lat, lng, timestamp, loading, error, getCurrentPosition, resetLocation } (30s timeout, fresh fixes)
+│   │   └── useAndroidBackButton.ts # Routes the Android hardware back button through React Router (exits only at the root)
+│   ├── native/
+│   │   └── systemCamera.ts   # JS side of the hand-written Android plugin that opens the phone's camera app, rear lens first
 │   ├── components/
 │   │   ├── Layout.tsx        # Responsive chrome: left sidebar (lg+) / floating bottom nav (mobile) — Home / Map
 │   │   ├── HostelCard.tsx    # Card with photo, rent badge, room rating badge, location, sharing options (incl. AC flags), feature tags
@@ -48,10 +51,18 @@ hostel_freebuff/
 │       ├── HostelDetailPage.tsx # Swipeable photo gallery with full-screen viewer (download button), details, ratings, rent options with AC/Non-AC badges, satellite mini-map, Open in Google Maps, call/edit/delete actions
 │       └── MapPage.tsx       # Full-screen satellite/street map with all hostel markers, popup cards with photo+details+room rating+Google Maps link
 ├── public/
-│   ├── favicon.svg           # Hostel-building SVG icon
-│   └── icons/                # PWA app icons (192px, 512px)
+│   ├── favicon.svg           # GENERATED — the app mark on a rounded plate (browser tab icon)
+│   └── icons/                # GENERATED — PWA app icons (192px, 512px)
+├── scripts/
+│   └── generate-icons.mjs    # Renders every icon (all Android densities + PWA) from public/favicon.svg
+├── android/                  # Capacitor Android project (app id com.hostelfinder.app)
+│   ├── app/src/main/AndroidManifest.xml   # INTERNET + location + camera permissions
+│   ├── app/src/main/java/…/SystemCameraPlugin.java  # ACTION_IMAGE_CAPTURE with the rear-lens extras (see decision 19)
+│   ├── app/src/main/res/mipmap-*/         # Launcher icons (legacy + adaptive foreground)
+│   ├── app/src/main/res/drawable/splash.xml  # Brand launch splash
+│   └── app/src/main/res/values/           # App name, theme, ic_launcher_background + app_background colours
 ├── dist/                     # Production build output (auto-generated)
-├── capacitor.config.ts       # Capacitor config (appId: com.hostelfinder.app)
+├── capacitor.config.ts       # Capacitor config (appId: com.hostelfinder.app, SystemBars style — see decision 20)
 ├── vite.config.ts            # Vite + React + Tailwind + PWA plugins with Workbox
 └── package.json              # Dependencies and scripts
 ```
@@ -182,7 +193,7 @@ The migration runs on **both** `getAllHostels()` (bulk list) and `getHostel()` (
 - Floating action button (FAB) to add new hostel
 
 ### AddHostelPage — Form
-- **Photos**: Two buttons — Camera (`capture="environment"`, one at a time) and Gallery (`multiple`, multi-select). Both reset `e.target.value` after selection to allow re-capture. Photo grid with drag-and-drop reorder (desktop) + arrow buttons (mobile), number badges, hover delete button, and hint about first photo being the card thumbnail.
+- **Photos**: Two buttons — **Camera** (opens the phone's own camera app, rear lens first, one shot per tap) and **Gallery** (`multiple`, multi-select, hidden file input). Camera goes through the native `SystemCamera` plugin when it's available (Android build) and `openCamera()` falls back to a hidden `capture="environment"` input otherwise; a photo that comes back as a base64 data URL is appended by `addCapturedPhoto(dataUrl)`, Gallery files go through `addPhotos(files)` (FileReader). Both append to `photos` (base64 data URLs) and the parallel `photoFiles`; Gallery also resets `e.target.value` after selection so the same file can be picked again. See decision 19 for why the camera route is native. Photo grid with drag-and-drop reorder (desktop) + arrow buttons (mobile), number badges, an always-visible delete cross (hover-revealed only on pointer devices — see decision 21), and a hint about the first photo being the card thumbnail.
 - **Name**: Text input, required
 - **Target Demographic**: Selection chips — "Boys" (blue, person icon) or "Co-living" (purple, group icon). Required.
 - **Rent per Sharing (share-button pattern)**:
@@ -280,7 +291,7 @@ All UI styling is centralized in `src/index.css` using Tailwind 4 `@theme` token
 ### Other conventions
 - **Bottom nav**: floating glass pill (`Layout.tsx`) — `backdrop-blur-xl`, iris glow pill behind active tab; content wraps in `pb-28`
 - **Font**: Inter Variable loaded in `main.tsx` (font-feature settings cv11/ss01); theme font-sans wired via `@theme --font-sans`
-- **Leaflet**: full dark override — dark popups, glassy zoom controls, slim scrollbars app-wide, dark attribution
+- **Leaflet**: full dark override — dark popups, glassy zoom controls, slim scrollbars app-wide, dark attribution. The container **must stay its own stacking context** (`position: relative; z-index: 0; isolation: isolate`): its panes carry z-index 200–1000, and the container was previously unpositioned, so they escaped into the page root and painted over the sticky form header and over modal overlays.
 - **Selected star ratings** use amber-400; unfilled use ink-700
 
 ### Motion (CSS-only, no animation library)
@@ -309,20 +320,43 @@ Defined in `src/index.css` `@layer components`; all decorative animation is disa
 9. **Electricity not in feature list**: Dedicated dropdown (Included / Fixed Bill / Per Unit Meter) with conditional amount input.
 10. **Target Demographic**: Selection chips (Boys / Co-living) required; displayed as a badge on cards and detail page.
 11. **Policy & Agreements**: Lock-in period and notice period in months, displayed in Fees & Policies.
-12. **Camera + Gallery**: Two separate file inputs; camera takes one photo per tap.
+12. **Camera + Gallery**: Two separate routes; camera takes one photo per tap (system camera app via the native plugin, see decision 19), gallery accepts many.
 13. **Indian number formatting** on all money inputs via `Intl.NumberFormat('en-IN')` + `stripNonDigits()`.
 14. **Full-screen photo viewer** with swipe support, close button, counter, desktop arrows, download.
 15. **PWA**: Installs on mobile home screen; works offline via Workbox service worker; map tiles cached CacheFirst (200 entries, 30 days).
 16. **Dark theme, one source of truth**: The entire look lives in `src/index.css` ("Ink & Iris" design system — see section above). Changing the palette/theme = editing tokens there; pages only consume component classes and ink/iris tokens.
-17. **PWA update flow without data loss** (`registerType: 'prompt'` + `UpdateToast.tsx`): deployed updates are never applied silently. The new service worker downloads and *waits*; the toast shows "A new version is available — Refresh to update, your saved hostels are safe". Clicking Refresh posts `SKIP_WAITING` to the SW, activates it and reloads. **IndexedDB (`hostels`) is never touched by this flow** — only hashed app-shell files are replaced (outdated precaches are cleaned via `cleanupOutdatedCaches`). Hostel data loss only ever came from manually clearing "site data" in the browser, which this flow makes unnecessary. A periodic `registration.update()` (hourly, from `onRegisteredSW`) picks up new deploys on long-lived sessions.
+17. **PWA update flow without data loss** (`registerType: 'prompt'` + `UpdateToast.tsx`): deployed updates are never applied silently. The new service worker downloads and *waits*; the toast shows "A new version is available — Refresh to update, your saved hostels are safe". Clicking Refresh posts `SKIP_WAITING` to the SW, activates it and reloads. **IndexedDB (`hostels`) is never touched by this flow** — only hashed app-shell files are replaced (outdated precaches are cleaned via `cleanupOutdatedCaches`). Hostel data loss only ever came from manually clearing "site data" in the browser, which this flow makes unnecessary. A periodic `registration.update()` (hourly, from `onRegisteredSW`) picks up new deploys on long-lived sessions. **This flow is web-only** — the native Android build ships no service worker (`--mode native`) and `App.tsx` does not mount `<UpdateToast />` there.
+18. **Android hardware back goes back, not out**: Capacitor 8's core has no back-button handling at all, so a back press fell through to the Activity's default and closed the app from any sub-page. `@capacitor/app` is now installed, and `useAndroidBackButton()` — mounted in `App.tsx` rather than `Layout`, because `Layout` only wraps `/` — subscribes to the `backButton` event. It returns with `navigate(-1)` when `window.history.state.idx > 0`, and calls `App.exitApp()` only at the root. `idx` is React Router v7's own history depth (`BrowserRouter` → `createBrowserHistory` writes it on every push/replace), so it matches exactly what `navigate(-1)` will do — unlike the WebView's `canGoBack()`, which still counts entries the router has replaced. Subscribing takes over Capacitor's default handler (which only drives the WebView history and leaves back a no-op at the root), so the explicit `exitApp()` is what keeps the button able to leave the app.
+19. **System camera app, rear lens first (`SystemCameraPlugin`)**: Android has no *API* to choose a lens for `ACTION_IMAGE_CAPTURE` — all 30 `MediaStore` classes were checked and none carries a front/back extra — and Capacitor's file chooser only reports *that* capture was requested (`FileChooserParams.isCaptureEnabled()` is a boolean), so `capture="environment"` never reaches the camera app and it reopens whichever lens was used last. There *is* a widely honoured **de-facto extra set** though, which OEM camera apps (Samsung, Google, AOSP) and third-party ones (Open Camera) read, and which cross-platform plugins use for exactly this bug:
+
+    ```java
+    intent.putExtra("android.intent.extras.CAMERA_FACING", 0);        // 0 = rear, 1 = front
+    intent.putExtra("android.intent.extras.LENS_FACING_BACK", 1);
+    intent.putExtra("android.intent.extra.USE_FRONT_CAMERA", false);
+    ```
+
+    Those cannot be attached from JS, so `android/app/src/main/java/com/hostelfinder/app/SystemCameraPlugin.java` (registered in `MainActivity.onCreate`) launches the intent itself with `EXTRA_OUTPUT` pointing at a FileProvider URI in the app cache. It requests the CAMERA runtime permission first — since Android 11, calling a camera app that declares CAMERA throws otherwise — and returns the **full-size JPEG** as a base64 data URL, so nothing is re-encoded or downscaled and EXIF orientation survives (a canvas capture would have flattened it).
+
+    An earlier revision captured in-app with `getUserMedia` (`facingMode: exact 'environment'`); that was removed because a phone's extra lenses (ultra-wide) are separate devices that `facingMode: 'environment'` can satisfy, so it could open the ultra-wide instead of the main rear camera. An extra is a *request*, not a guarantee: a camera app may ignore it, which is the one thing that can't be verified without the device.
+
+20. **System bars match the app (`AppTheme.NoActionBar` + `SystemBars` config)**: the phone's navigation strip showed up as a grey band under the near-black UI. Two independent causes, both fixed:
+    - *The colour.* `BridgeActivity.onCreate` switches the activity to `AppTheme.NoActionBar`, whose `Theme.AppCompat.DayNight.*` parent resolves `?android:attr/windowBackground` from the **device's** light/dark setting. Capacitor's `SystemBars` plugin paints that attribute onto the decor view, and it is what shows wherever the WebView doesn't reach — i.e. the strip the navigation bar sits on. In light mode that is grey. The theme now pins `windowBackground`, `statusBarColor` and `navigationBarColor` to `@color/app_background` (`#09090E`, ink-950, kept in sync with `src/index.css`) and turns off `enforceStatusBarContrast` / `enforceNavigationBarContrast` so Android 10+ doesn't lay its own translucent scrim over the bars.
+    - *The icons.* `SystemBars` defaults to `style: DEFAULT`, which derives the bar icon colour from the device's light/dark setting too — dark icons on what is now a dark bar. `capacitor.config.ts` pins `plugins.SystemBars.style = 'DARK'`. That config lives in `capacitor.config.ts`, so it only reaches the app via `npm run android:sync` (which writes `android/app/src/main/assets/capacitor.config.json`).
+
+    Deliberately **not** changed: the viewport meta has no `viewport-fit=cover`, so the WebView stays out of the bar insets and `SystemBars` keeps its default `insetsHandling: css`. Going edge-to-edge would mean auditing `env(safe-area-inset-*)` around the floating bottom nav (`fixed bottom-4`).
+
+21. **Touch first — nothing interactive may be revealed only on hover**: the photo grid's delete cross was `opacity-0 group-hover:opacity-100`, so on a phone it never appeared (a touch screen has no hover); it looked correct in the browser purely because a mouse was present. It is now `opacity-100 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100` — visible by default, hover-revealed only for a real pointer, with Tailwind also nesting the hover rule inside `@media (hover: hover)`. Use this pattern for any new hover affordance. Verifiable without a phone in headless Chromium: `--blink-settings=primaryPointerType=2,availablePointerTypes=2,primaryHoverType=1,availableHoverTypes=1` emulates `pointer: coarse` / `hover: none`, and the element's computed `opacity` should be 1 there and 0 (until hovered) on a desktop run of the same page.
 
 ## Scripts
 
 ```bash
-npm run dev        # Start development server
-npm run build      # TypeScript check + Vite production build
-npm run preview    # Preview production build locally
-npm run lint       # ESLint check
+npm run dev           # Start development server
+npm run build         # TypeScript check + Vite production build (PWA, with service worker)
+npm run build:native  # Same, but for the embedded native app (no service worker)
+npm run preview       # Preview production build locally
+npm run lint          # ESLint check
+npm run icons         # Regenerate Android + PWA icons from public/favicon.svg
+npm run android:sync  # build:native + cap sync android
 ```
 
 ## How to Run / Test
@@ -343,14 +377,97 @@ npx ngrok http 5173
 
 ## How to Build Native Mobile App (Capacitor)
 
+The Android platform is **already added and configured** — app id `com.hostelfinder.app`,
+label "Hostel Finder", location + camera permissions declared, brand launcher icons and
+splash in place. You only need to run the build.
+
+### Prerequisites
+
+| Requirement | Notes |
+|---|---|
+| **JDK 17-21** | **Gradle 8.14.3 (pinned by Capacitor) rejects Java 22+.** Android Studio's bundled JBR is often newer, so point `JAVA_HOME` at a 17-21 JDK. |
+| Android SDK | Platform 36 + build-tools. Either set `ANDROID_HOME`, or put `sdk.dir=...` in `android/local.properties` (gitignored). |
+| Android Studio | Optional — only needed to run/debug the app on a device or emulator. |
+
+### Build the APK
+
 ```bash
-npm run build                          # Build web app first
-npx cap add android                    # Add Android platform
-npx cap sync                           # Sync web build to native
-npx cap open android                   # Open in Android Studio
+npm run android:sync      # build:native + cap sync android
+cd android && ./gradlew assembleDebug
+# → android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
-For iOS (requires Mac with Xcode):
+Install it on a connected device:
+
+```bash
+adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+### Or work in Android Studio
+
+```bash
+npm run android:sync
+npx cap open android      # then Run ▸ Run 'app'
+```
+
+### Why `android:sync` instead of `cap sync`
+
+`npm run android:sync` builds with `--mode native`, which **omits the Workbox service
+worker**. Capacitor serves the app from `https://localhost`, where a service worker *does*
+register and persists across app updates — a stale precache would keep serving the previous
+build's `index.html` and hashed assets after every sync, breaking the app. Web builds keep
+the full offline PWA behaviour, and `App.tsx` skips mounting `<UpdateToast />` natively.
+
+### App icons & splash
+
+The entire icon set comes from one place — the mark defined in
+`scripts/generate-icons.mjs`: a **solid iris-gradient building** with a rounded, overhanging
+roof and a 2x2 window grid punched through it, one window lit amber. (Earlier revisions used
+a thin 4px blue outline on a translucent house, which disappeared at launcher sizes.)
+
+```bash
+npm run icons             # scripts/generate-icons.mjs (uses sharp)
+```
+
+That writes:
+
+- the legacy square + round launcher icons **and** the adaptive-icon foreground layer, for
+  all five Android densities (`mipmap-mdpi` … `mipmap-xxxhdpi`)
+- `public/icons/icon-192.png` and `icon-512.png` for the PWA
+- `public/favicon.svg` — the same mark on a rounded plate, so the browser tab matches the
+  installed app
+
+Windows are punched as **real transparent holes** (a `dest-out` composite), not
+plate-coloured fills, so the adaptive foreground still reads correctly when Android masks or
+theme-tints the icon. The artwork occupies ~62% of the legacy icon and ~54% of the 108dp
+adaptive canvas, centred to within a pixel — measured, not assumed: render the PNG and take the
+bounding box of the non-plate / non-transparent pixels.
+
+The adaptive background colour is `values/ic_launcher_background.xml` (`#0F172A`, kept in
+sync with `PLATE` in the script), and the launch splash is `drawable/splash.xml` (that
+colour + a centred `@mipmap/ic_launcher_foreground`), replacing Capacitor's default white
+bitmap splash on every orientation/density.
+
+### Native plugins
+
+| Plugin | Used for |
+|---|---|
+| `@capacitor/app` | Android hardware back button (`backButton` event) and `exitApp()` |
+| `@capacitor/geolocation` | GPS for "Detect GPS" inside the app shell |
+| `@capacitor/filesystem` | Pre-wired for native storage; **not used yet** — the app still runs on IndexedDB |
+| `SystemCamera` (**hand-written**, `SystemCameraPlugin.java`) | The Camera button: opens the system camera app asking for the rear lens (decision 19) |
+
+Hand-written plugins are not managed by `cap sync` — they are plain Java in
+`android/app/src/main/java/…` and must be registered in `MainActivity.onCreate` (Capacitor only
+auto-discovers plugins that ship as a Gradle library). Their JS side is a `registerPlugin()`
+call, e.g. `src/native/systemCamera.ts`.
+
+Installing a plugin is not enough: run `npm run android:sync` so it lands in
+`capacitor.plugins.json` and the Gradle module graph, or the JS side will call into a plugin
+that isn't there.
+
+### iOS (requires a Mac with Xcode)
+
 ```bash
 npx cap add ios
 npx cap sync
@@ -365,3 +482,7 @@ npx cap open ios
 4. **PWA install & Geolocation require HTTPS**: Use ngrok or deploy to Vercel/Netlify. (Geolocation also needs HTTPS or localhost.)
 5. **Touch events**: Swipe gestures use React touch event handlers. `preventDefault()` may not work in passive event listeners on some browsers (minor UX — swipe works but page may scroll slightly).
 6. **AC filter scope**: The Room Type filter matches hostels that offer *at least one* AC (or Non-AC) option — it doesn't filter individual rent rows in the results display.
+7. **Native builds need JDK 17-21**: Capacitor pins Gradle 8.14.3, which does not support Java 22+ (it fails with `Unsupported class file major version 69` on Java 25). Android Studio's bundled JBR may be newer than that — point `JAVA_HOME` at a 17-21 JDK before running Gradle.
+8. **Android launcher icon is the only icon source for the app itself**: the `android/` project is committed, but `android/app/src/main/assets/public/` and `capacitor-cordova-android-plugins/` are gitignored build output — regenerate them with `npm run android:sync`.
+9. **The camera's rear-lens request is a convention, not an API**: `SystemCameraPlugin` sets the extra set camera apps read, but nothing obliges an app to honour it (nor to keep the main rear lens rather than an ultra-wide). Android exposes no supported way to pick a lens.
+10. **Camera photos are now full-resolution**: the system camera app saves its normal shot, so a single photo can be several MB before base64 encoding (the removed in-app capture re-encoded a ~720p video frame, a few hundred KB). Storage per photo therefore went up noticeably — downscale in the plugin if that becomes a problem.

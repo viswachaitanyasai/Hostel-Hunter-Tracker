@@ -1,11 +1,13 @@
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import type { ReactNode } from 'react';
+import { Capacitor } from '@capacitor/core';
 import Layout from './components/Layout';
 import HomePage from './pages/HomePage';
 import AddHostelPage from './pages/AddHostelPage';
 import HostelDetailPage from './pages/HostelDetailPage';
 import MapPage from './pages/MapPage';
 import UpdateToast from './components/UpdateToast';
+import { useAndroidBackButton } from './hooks/useAndroidBackButton';
 
 /**
  * Keyed by pathname so the enter animation replays on every navigation.
@@ -22,11 +24,27 @@ function PageShell({ children, fade = false }: { children: ReactNode; fade?: boo
   );
 }
 
+// Inside the native app shell there is no deployed bundle to update to, and the
+// native build ships no service worker at all (see `--mode native` in
+// vite.config.ts), so the PWA update prompt is never mounted.
+const isNative = Capacitor.isNativePlatform();
+
+/**
+ * Routes the Android hardware back button (see the hook for the details). Mounted
+ * here rather than in Layout because Layout only wraps `/` — without this, back
+ * on /hostel/:id, /add, /edit/:id or /map would close the app.
+ */
+function AndroidBackButton() {
+  useAndroidBackButton();
+  return null;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       {/* Global PWA update prompt (new version available / offline ready) */}
-      <UpdateToast />
+      {!isNative && <UpdateToast />}
+      <AndroidBackButton />
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<HomePage />} />

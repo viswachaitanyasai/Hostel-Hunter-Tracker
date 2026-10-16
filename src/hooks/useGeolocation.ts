@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { Capacitor } from '@capacitor/core';
 
 interface GeolocationState {
   lat: number | null;
@@ -18,6 +19,20 @@ const GEO_OPTIONS: PositionOptions = {
   maximumAge: 0,
 };
 
+// Inside the native app shell (Android/iOS) we prefer the Capacitor plugin: it
+// uses the platform location provider directly instead of the WebView's
+// geolocation bridge. On the web/PWA this stays false and we use the browser API.
+const isNative = Capacitor.isNativePlatform();
+
+/** Map native plugin failures onto the same messages the browser API produces. */
+function nativeErrorMessage(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err ?? '');
+  if (/denied|permission/i.test(message)) return 'Location permission denied. Please enable GPS.';
+  if (/timeout/i.test(message)) return 'Location request timed out. Try moving to an open area.';
+  if (/disabled|not enabled|unavailable/i.test(message)) return 'Location unavailable. Try again.';
+  return message || 'Failed to get location';
+}
+
 export function useGeolocation() {
   const [state, setState] = useState<GeolocationState>({
     lat: null,
@@ -27,13 +42,47 @@ export function useGeolocation() {
     error: null,
   });
 
-  const getCurrentPosition = useCallback(() => {
-    if (!navigator.geolocation) {
+  const getCurrentPosition = useCallback(async () => {
+    if (!isNative && !navigator.geolocation) {
       setState(prev => ({ ...prev, error: 'Geolocation is not supported by your browser' }));
       return;
     }
 
     setState(prev => ({ ...prev, loading: true, error: null }));
+
+    if (isNative) {
+      try {
+        const { Geolocation } = await import('@capacitor/geolocation');
+
+        // Ask for the runtime permission up front so a denial surfaces as a
+        // clear error instead of a bare plugin rejection. Capacitor treats a
+        // granted coarse location as enough on Android 12+.
+        const current = await Geolocation.checkPermissions();
+        if (current.location !== 'granted') {
+          const requested = await Geolocation.requestPermissions();
+          if (requested.location !== 'granted') {
+            setState(prev => ({
+              ...prev,
+              loading: false,
+              error: 'Location permission denied. Please enable GPS.',
+            }));
+            return;
+          }
+        }
+
+        const position = await Geolocation.getCurrentPosition(GEO_OPTIONS);
+        setState({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          timestamp: position.timestamp || Date.now(),
+          loading: false,
+          error: null,
+        });
+      } catch (err) {
+        setState(prev => ({ ...prev, loading: false, error: nativeErrorMessage(err) }));
+      }
+      return;
+    }
 
     navigator.geolocation.getCurrentPosition(
       (position) => {

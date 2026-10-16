@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        The app's own page background, used for the window and both system bars.
+
+        Android paints this wherever the WebView doesn't reach — most visibly the
+        strip the system navigation bar sits on at the bottom of the screen. Left
+        to the AppCompat theme it resolves from the *device's* light/dark setting,
+        so on a phone in light mode the app got a grey band under a near-black
+        UI. Keep in sync with the ink-950 token (#09090e) in src/index.css.
+    -->
+    <color name="app_background">#09090E</color>
+</resources>

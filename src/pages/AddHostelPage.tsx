@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, CircleMarker, useMapEvents, useMap } from 'react-leaflet';
 import { icon } from 'leaflet';
 import { useGeolocation } from '../hooks/useGeolocation';
+import { capturePhotoWithSystemCamera, hasSystemCamera } from '../native/systemCamera';
 import { createHostel, updateHostel, getHostelById, fileToBase64 } from '../storage';
 import { AMENITIES_LIST, SHARE_OPTIONS } from '../types';
 import type { HostelRent, HostelType, ElectricityType } from '../types';
@@ -209,14 +210,52 @@ export default function AddHostelPage() {
     );
   };
 
-  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
+  /** Appends files to the photo list, keeping `photoFiles` and `photos` in step. */
+  const addPhotos = async (files: File[]) => {
     if (files.length === 0) return;
     setPhotoFiles((prev) => [...prev, ...files]);
     const newPhotos = await Promise.all(files.map(fileToBase64));
     setPhotos((prev) => [...prev, ...newPhotos]);
+  };
+
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    await addPhotos(files);
     // Reset so the same file/camera can be used again
     e.target.value = '';
+  };
+
+  /**
+   * Opens the phone's own camera app, rear lens first.
+   *
+   * In the Android app this goes through the native SystemCamera plugin, which
+   * is the only route that can ask for a lens (see `src/native/systemCamera.ts`).
+   * Everywhere else — and if the plugin is ever missing — we fall back to the
+   * hidden `capture="environment"` input, which mobile browsers do honour.
+   */
+  const openCamera = async () => {
+    if (!hasSystemCamera()) {
+      cameraInputRef.current?.click();
+      return;
+    }
+
+    try {
+      const dataUrl = await capturePhotoWithSystemCamera();
+      // null = the user backed out of the camera app.
+      if (dataUrl) await addCapturedPhoto(dataUrl);
+    } catch (err) {
+      console.error('Camera failed:', err);
+      setError('Could not open the camera. Please try again.');
+    }
+  };
+
+  /**
+   * Adds a photo that arrived as a base64 data URL (the camera app's output),
+   * keeping `photoFiles` in step with `photos` the same way `addPhotos` does.
+   */
+  const addCapturedPhoto = async (dataUrl: string) => {
+    setPhotos((prev) => [...prev, dataUrl]);
+    setPhotoFiles((prev) => [...prev, dataUrlToFile(dataUrl, `photo-${Date.now()}.jpg`)]);
   };
 
   const removePhoto = (index: number) => {
@@ -904,7 +943,12 @@ export default function AddHostelPage() {
                     <button
                       type="button"
                       onClick={() => removePhoto(index)}
-                      className="absolute top-1 right-1 w-5 h-5 bg-rose-500/90 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-rose-500"
+                      /*
+                       * Always visible, because a touch screen has no hover to reveal it. Only
+                       * on a device with a real pointer (`pointer: fine` — desktop, or a phone
+                       * with a mouse attached) does it go back to appearing on hover.
+                       */
+                      className="absolute top-1 right-1 w-5 h-5 bg-rose-500/90 rounded-full flex items-center justify-center transition-opacity opacity-100 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 hover:bg-rose-500"
                     >
                       <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -950,7 +994,7 @@ export default function AddHostelPage() {
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={() => cameraInputRef.current?.click()}
+                onClick={openCamera}
                 className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl border border-dashed border-white/[0.12] hover:border-iris-500/50 text-ink-400 hover:text-iris-300 transition-all duration-200 bg-ink-850/60"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -971,8 +1015,9 @@ export default function AddHostelPage() {
               </button>
             </div>
             <p className="text-[11px] text-ink-500 mt-1.5">
-              Camera takes one photo at a time (tap multiple times). Gallery lets you select multiple.
+              Camera opens your camera app, rear lens first (one photo per tap). Gallery lets you select multiple.
             </p>
+            {/* Fallback only — see openCamera(). */}
             <input
               ref={cameraInputRef}
               type="file"
@@ -1018,6 +1063,16 @@ export default function AddHostelPage() {
       </div>
     </div>
   );
+}
+
+/** Rebuilds a File from a base64 data URL, so `photoFiles` mirrors the camera shot. */
+function dataUrlToFile(dataUrl: string, name: string): File {
+  const [header, base64] = dataUrl.split(',');
+  const type = /data:(.*?)[;,]/.exec(header)?.[1] ?? 'image/jpeg';
+  const binary = atob(base64 ?? '');
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return new File([bytes], name, { type });
 }
 
 async function reverseGeocode(lat: number, lng: number): Promise<string> {

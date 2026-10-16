@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Base application theme. -->
+    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+        <!-- Customize your theme here. -->
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+    </style>
+
+    <!--
+        Runtime theme. Capacitor switches the activity to this one in
+        BridgeActivity.onCreate, so this — not AppTheme.NoActionBarLaunch above
+        — is what the app actually runs in. (tools:targetApi silences the
+        "newer attribute" lint; the API 27/29 attributes below are simply
+        ignored by older releases.)
+    -->
+    <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar" tools:targetApi="q">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:background">@null</item>
+
+        <!--
+            Blend the system bars into the app.
+
+            `windowBackground` is the important one: Capacitor's SystemBars plugin
+            copies it onto the decor view, and it is what shows wherever the WebView
+            doesn't reach — the strip the navigation bar sits on. Under a DayNight
+            parent it resolved to light grey on a phone in light mode, which is the
+            grey band that didn't match the app. The two `*BarColor` items cover
+            releases before edge-to-edge, and disabling the contrast enforcement
+            stops Android 10+ from laying its own translucent scrim over the bars.
+            Light icons on those dark bars, in both device modes.
+        -->
+        <item name="android:windowBackground">@color/app_background</item>
+        <item name="android:statusBarColor">@color/app_background</item>
+        <item name="android:navigationBarColor">@color/app_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:enforceStatusBarContrast">false</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
+    </style>
+
+
+    <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
+        <item name="android:background">@drawable/splash</item>
+        <!-- Android 12+ shows its own system splash; keep it on-brand rather
+             than the default white plate with the launcher icon. -->
+        <item name="windowSplashScreenBackground">@color/ic_launcher_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
+    </style>
+</resources>

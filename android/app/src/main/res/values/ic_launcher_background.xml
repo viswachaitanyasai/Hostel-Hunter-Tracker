@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <!--
+        Plate colour behind the adaptive launcher icon's foreground layer, and
+        the background for the launch splash. Matches the app's dark theme
+        (ink-950 background in the "Ink & Iris" palette) and the plate in
+        public/favicon.svg. Keep in sync with BACKGROUND in
+        scripts/generate-icons.mjs.
+    -->
+    <color name="ic_launcher_background">#0F172A</color>
+</resources>
